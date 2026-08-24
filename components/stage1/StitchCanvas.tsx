@@ -12,6 +12,7 @@ import {
   Image as ImageIcon,
   Type,
   Maximize2,
+  Minimize2,
   ZoomIn,
   ZoomOut,
   RotateCcw,
@@ -26,6 +27,10 @@ import {
   Upload,
   CheckCircle,
   Loader2,
+  Scan,
+  X,
+  Layers,
+  Palette,
 } from "lucide-react";
 
 const STICKY_COLORS = [
@@ -103,13 +108,14 @@ export function StitchCanvas({
     stage === "stage2" ? deleteStage2Item(args) : deleteStage1Item(args);
 
   // Canvas Transform state
-  const [transform, setTransform] = useState({ x: 120, y: 80, scale: 0.95 });
+  const [transform, setTransform] = useState({ x: 80, y: 60, scale: 0.9 });
   const [activeTool, setActiveTool] = useState<"select" | "hand" | "sticky" | "text" | "frame">("select");
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [isPanning, setIsPanning] = useState(false);
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [isUploading, setIsUploading] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Resizing state
   const [resizingState, setResizingState] = useState<ResizingState | null>(null);
@@ -119,39 +125,116 @@ export function StitchCanvas({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const panStartRef = useRef({ x: 0, y: 0 });
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Handle Wheel Zoom & Trackpad Pan
-  const handleWheel = useCallback(
-    (e: React.WheelEvent) => {
-      e.preventDefault();
-      if (!containerRef.current) return;
+  // Multi-Touch tracking ref for pinch zoom and touch pan
+  const touchStateRef = useRef<{
+    mode: "none" | "pan" | "pinch" | "drag_item" | "resize_item";
+    initialPinchDist: number;
+    initialScale: number;
+    initialPinchCenter: { x: number; y: number };
+    initialTransform: { x: number; y: number; scale: number };
+    panStart: { x: number; y: number };
+    lastTapTime: number;
+  }>({
+    mode: "none",
+    initialPinchDist: 0,
+    initialScale: 1,
+    initialPinchCenter: { x: 0, y: 0 },
+    initialTransform: { x: 0, y: 0, scale: 1 },
+    panStart: { x: 0, y: 0 },
+    lastTapTime: 0,
+  });
 
-      if (e.ctrlKey || e.metaKey) {
-        // Pinch Zoom
-        const zoomFactor = e.deltaY < 0 ? 1.08 : 0.92;
-        const rect = containerRef.current.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
+  // Smart Fit To Screen (Overview Framing)
+  const fitToScreen = useCallback(() => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const containerW = rect.width || window.innerWidth;
+    const containerH = rect.height || window.innerHeight;
 
-        setTransform((prev) => {
-          const newScale = Math.min(Math.max(prev.scale * zoomFactor, 0.25), 2.5);
-          const newX = mouseX - ((mouseX - prev.x) / prev.scale) * newScale;
-          const newY = mouseY - ((mouseY - prev.y) / prev.scale) * newScale;
-          return { x: newX, y: newY, scale: newScale };
-        });
-      } else {
-        // Two finger Pan
-        setTransform((prev) => ({
-          ...prev,
-          x: prev.x - e.deltaX,
-          y: prev.y - e.deltaY,
-        }));
-      }
-    },
-    []
-  );
+    if (!items || items.length === 0) {
+      setTransform({
+        x: Math.round(containerW / 2 - 100),
+        y: Math.round(containerH / 2 - 80),
+        scale: 0.95,
+      });
+      return;
+    }
 
-  // Pan Gestures (Middle click or Hand tool)
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    items.forEach((item) => {
+      const dim = localDimensions[item._id] || {
+        x: item.x,
+        y: item.y,
+        width: item.width || (item.type === "pdf" ? 300 : item.type === "audio" ? 280 : 260),
+        height: item.height || (item.type === "pdf" ? 360 : item.type === "audio" ? 100 : 200),
+      };
+      minX = Math.min(minX, dim.x);
+      minY = Math.min(minY, dim.y);
+      maxX = Math.max(maxX, dim.x + dim.width);
+      maxY = Math.max(maxY, dim.y + dim.height);
+    });
+
+    const boardW = Math.max(maxX - minX, 100) + 120;
+    const boardH = Math.max(maxY - minY, 100) + 140;
+
+    const scaleX = containerW / boardW;
+    const scaleY = containerH / boardH;
+    const newScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.25), 1.25);
+
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+
+    const newX = Math.round(containerW / 2 - centerX * newScale);
+    const newY = Math.round(containerH / 2 - centerY * newScale);
+
+    setTransform({ x: newX, y: newY, scale: newScale });
+  }, [items, localDimensions]);
+
+  // Handle Wheel Zoom & Trackpad Pan (Desktop)
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    if (!containerRef.current) return;
+
+    if (e.ctrlKey || e.metaKey) {
+      // Pinch Zoom
+      const zoomFactor = e.deltaY < 0 ? 1.08 : 0.92;
+      const rect = containerRef.current.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      setTransform((prev) => {
+        const newScale = Math.min(Math.max(prev.scale * zoomFactor, 0.25), 2.5);
+        const newX = mouseX - ((mouseX - prev.x) / prev.scale) * newScale;
+        const newY = mouseY - ((mouseY - prev.y) / prev.scale) * newScale;
+        return { x: newX, y: newY, scale: newScale };
+      });
+    } else {
+      // Two finger Pan
+      setTransform((prev) => ({
+        ...prev,
+        x: prev.x - e.deltaX,
+        y: prev.y - e.deltaY,
+      }));
+    }
+  }, []);
+
+  // Convert Screen Coordinates to Canvas Coordinates
+  const screenToCanvas = (screenX: number, screenY: number) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return { x: 200, y: 200 };
+    return {
+      x: Math.round((screenX - rect.left - transform.x) / transform.scale),
+      y: Math.round((screenY - rect.top - transform.y) / transform.scale),
+    };
+  };
+
+  // Mouse Gestures (Desktop)
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button === 1 || activeTool === "hand") {
       setIsPanning(true);
@@ -296,19 +379,230 @@ export function StitchCanvas({
     setDraggedItemId(null);
   };
 
-  // Convert Screen Coordinates to Canvas Coordinates
-  const screenToCanvas = (screenX: number, screenY: number) => {
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect) return { x: 200, y: 200 };
-    return {
-      x: Math.round((screenX - rect.left - transform.x) / transform.scale),
-      y: Math.round((screenY - rect.top - transform.y) / transform.scale),
+  // --- MOBILE TOUCH EVENT ENGINE ---
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      // 2-Finger Pinch-to-Zoom and Pan
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+      const center = {
+        x: (t1.clientX + t2.clientX) / 2,
+        y: (t1.clientY + t2.clientY) / 2,
+      };
+
+      touchStateRef.current = {
+        ...touchStateRef.current,
+        mode: "pinch",
+        initialPinchDist: dist,
+        initialScale: transform.scale,
+        initialPinchCenter: center,
+        initialTransform: { ...transform },
+      };
+      return;
+    }
+
+    if (e.touches.length === 1) {
+      const t = e.touches[0];
+      const now = Date.now();
+
+      // Double-Tap to Fit to Screen
+      if (now - touchStateRef.current.lastTapTime < 300) {
+        fitToScreen();
+        touchStateRef.current.lastTapTime = 0;
+        return;
+      }
+      touchStateRef.current.lastTapTime = now;
+
+      // Tap on empty canvas deselects
+      if (e.target === containerRef.current || (e.target as HTMLElement).id === "canvas-plane") {
+        setSelectedItemId(null);
+      }
+
+      // Single touch pan if hand mode or touching background
+      touchStateRef.current.mode = "pan";
+      touchStateRef.current.panStart = {
+        x: t.clientX - transform.x,
+        y: t.clientY - transform.y,
+      };
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      // Pinch to Zoom + Two Finger Pan
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      const currentDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+      const currentCenter = {
+        x: (t1.clientX + t2.clientX) / 2,
+        y: (t1.clientY + t2.clientY) / 2,
+      };
+
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+
+      const { initialPinchDist, initialScale, initialPinchCenter, initialTransform } = touchStateRef.current;
+      if (initialPinchDist > 0) {
+        const scaleFactor = currentDist / initialPinchDist;
+        const newScale = Math.min(Math.max(initialScale * scaleFactor, 0.25), 2.8);
+
+        const mouseX = initialPinchCenter.x - rect.left;
+        const mouseY = initialPinchCenter.y - rect.top;
+
+        const panDeltaX = currentCenter.x - initialPinchCenter.x;
+        const panDeltaY = currentCenter.y - initialPinchCenter.y;
+
+        const newX = mouseX - ((mouseX - initialTransform.x) / initialTransform.scale) * newScale + panDeltaX;
+        const newY = mouseY - ((mouseY - initialTransform.y) / initialTransform.scale) * newScale + panDeltaY;
+
+        setTransform({ x: newX, y: newY, scale: newScale });
+      }
+      return;
+    }
+
+    if (e.touches.length === 1) {
+      const t = e.touches[0];
+
+      // 1. Mobile Resizing
+      if (resizingState && isEditable) {
+        const dx = (t.clientX - resizingState.startX) / transform.scale;
+        const dy = (t.clientY - resizingState.startY) / transform.scale;
+
+        let newWidth = resizingState.initialWidth;
+        let newHeight = resizingState.initialHeight;
+        let newX = resizingState.initialX;
+        let newY = resizingState.initialY;
+
+        const minW = 80;
+        const minH = 50;
+
+        if (resizingState.handle.includes("e")) {
+          newWidth = Math.max(minW, Math.round(resizingState.initialWidth + dx));
+        }
+        if (resizingState.handle.includes("s")) {
+          newHeight = Math.max(minH, Math.round(resizingState.initialHeight + dy));
+        }
+        if (resizingState.handle.includes("w")) {
+          const rawW = resizingState.initialWidth - dx;
+          newWidth = Math.max(minW, Math.round(rawW));
+          newX = Math.round(resizingState.initialX + (resizingState.initialWidth - newWidth));
+        }
+        if (resizingState.handle.includes("n")) {
+          const rawH = resizingState.initialHeight - dy;
+          newHeight = Math.max(minH, Math.round(rawH));
+          newY = Math.round(resizingState.initialY + (resizingState.initialHeight - newHeight));
+        }
+
+        setLocalDimensions((prev) => ({
+          ...prev,
+          [resizingState.itemId]: {
+            x: newX,
+            y: newY,
+            width: newWidth,
+            height: newHeight,
+          },
+        }));
+        return;
+      }
+
+      // 2. Mobile Dragging Item
+      if (draggedItemId && isEditable) {
+        const rect = containerRef.current?.getBoundingClientRect();
+        if (!rect) return;
+
+        const canvasX = (t.clientX - rect.left - transform.x) / transform.scale - dragOffset.x;
+        const canvasY = (t.clientY - rect.top - transform.y) / transform.scale - dragOffset.y;
+
+        const roundedX = Math.round(canvasX);
+        const roundedY = Math.round(canvasY);
+
+        setLocalDimensions((prev) => {
+          const current = prev[draggedItemId] || { width: 240, height: 180 };
+          return {
+            ...prev,
+            [draggedItemId]: {
+              ...current,
+              x: roundedX,
+              y: roundedY,
+            },
+          };
+        });
+
+        updateTransformMutation({
+          itemId: draggedItemId as any,
+          x: roundedX,
+          y: roundedY,
+        }).catch(console.error);
+        return;
+      }
+
+      // 3. Mobile Panning
+      if (touchStateRef.current.mode === "pan" || activeTool === "hand") {
+        setTransform((prev) => ({
+          ...prev,
+          x: t.clientX - touchStateRef.current.panStart.x,
+          y: t.clientY - touchStateRef.current.panStart.y,
+        }));
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    // Commit resize mutations if any
+    if (resizingState) {
+      const dim = localDimensions[resizingState.itemId];
+      if (dim) {
+        updateTransformMutation({
+          itemId: resizingState.itemId as any,
+          x: dim.x,
+          y: dim.y,
+          width: dim.width,
+          height: dim.height,
+        }).catch(console.error);
+      }
+      setResizingState(null);
+    }
+
+    setDraggedItemId(null);
+    touchStateRef.current.mode = "none";
+  };
+
+  const handleResizeTouchStart = (
+    e: React.TouchEvent,
+    item: any,
+    handle: ResizeHandleType
+  ) => {
+    if (!isEditable || e.touches.length > 1) return;
+    e.stopPropagation();
+
+    const t = e.touches[0];
+    const currentDim = localDimensions[item._id] || {
+      x: item.x,
+      y: item.y,
+      width: item.width || (item.type === "pdf" ? 300 : item.type === "audio" ? 280 : 260),
+      height: item.height || (item.type === "pdf" ? 360 : item.type === "audio" ? 100 : 200),
     };
+
+    setResizingState({
+      itemId: item._id,
+      handle,
+      startX: t.clientX,
+      startY: t.clientY,
+      initialX: currentDim.x,
+      initialY: currentDim.y,
+      initialWidth: currentDim.width,
+      initialHeight: currentDim.height,
+    });
   };
 
   // Add Sticky Note
   const handleAddSticky = async () => {
-    const pos = screenToCanvas(window.innerWidth / 2, window.innerHeight / 2);
+    const rect = containerRef.current?.getBoundingClientRect();
+    const centerX = rect ? rect.width / 2 : window.innerWidth / 2;
+    const centerY = rect ? rect.height / 2 : window.innerHeight / 2;
+    const pos = screenToCanvas(centerX, centerY);
     const colorObj = STICKY_COLORS[Math.floor(Math.random() * STICKY_COLORS.length)];
     await addItemMutation({
       projectId,
@@ -330,14 +624,17 @@ export function StitchCanvas({
 
   // Add Section Frame
   const handleAddFrame = async () => {
-    const pos = screenToCanvas(window.innerWidth / 2, window.innerHeight / 2);
+    const rect = containerRef.current?.getBoundingClientRect();
+    const centerX = rect ? rect.width / 2 : window.innerWidth / 2;
+    const centerY = rect ? rect.height / 2 : window.innerHeight / 2;
+    const pos = screenToCanvas(centerX, centerY);
     await addItemMutation({
       projectId,
       type: "frame",
-      x: pos.x - 200,
-      y: pos.y - 150,
-      width: 540,
-      height: 380,
+      x: pos.x - 180,
+      y: pos.y - 130,
+      width: 380,
+      height: 280,
       zIndex: 1,
       content:
         stage === "stage2"
@@ -393,12 +690,15 @@ export function StitchCanvas({
     }
   };
 
-  // Handle File Upload Button
+  // Handle File Upload Button (Desktop & Mobile)
   const handleFileUploadInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
-    const centerPos = screenToCanvas(window.innerWidth / 2, window.innerHeight / 2);
+    const rect = containerRef.current?.getBoundingClientRect();
+    const centerX = rect ? rect.width / 2 : window.innerWidth / 2;
+    const centerY = rect ? rect.height / 2 : window.innerHeight / 2;
+    const centerPos = screenToCanvas(centerX, centerY);
 
     try {
       setIsUploading(true);
@@ -428,46 +728,74 @@ export function StitchCanvas({
       alert("Upload failed: " + err.message);
     } finally {
       setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Active selected item helper
+  const selectedItem = items?.find((i) => i._id === selectedItemId);
 
   return (
-    <div className="relative w-full h-[78vh] sm:h-[82vh] bg-[#171512] overflow-hidden select-none border border-[#2E2924] rounded-2xl shadow-2xl flex flex-col">
-      {/* Top Canvas Bar */}
-      <div className="absolute top-4 left-4 z-30 flex items-center gap-3">
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-[#1C1916]/90 backdrop-blur-md border border-[#2E2924] rounded-xl text-xs font-mono text-[#EDE6DD] shadow-lg">
-          <div className="flex gap-1.5 mr-1">
+    <div
+      className={`relative w-full bg-[#171512] overflow-hidden select-none transition-all ${
+        isFullscreen
+          ? "fixed inset-0 z-50 w-screen h-[100dvh] rounded-none border-none shadow-none flex flex-col"
+          : "h-[74vh] sm:h-[82vh] border border-[#2E2924] rounded-2xl shadow-2xl flex flex-col"
+      }`}
+    >
+      {/* Hidden Mobile / Desktop File Input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        accept="image/*,video/*,audio/*,.pdf"
+        onChange={handleFileUploadInput}
+        className="hidden"
+      />
+
+      {/* TOP BAR: Responsive info pill & quick mode switch */}
+      <div className="absolute top-3 left-3 right-3 sm:right-auto z-30 flex items-center justify-between sm:justify-start gap-2 pointer-events-none">
+        {/* Stage Status Badge */}
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-[#1C1916]/90 backdrop-blur-md border border-[#2E2924] rounded-xl text-xs font-mono text-[#EDE6DD] shadow-lg pointer-events-auto max-w-[calc(100%-48px)] sm:max-w-none truncate">
+          <div className="flex gap-1.5 mr-0.5 shrink-0">
             <span className="w-2 h-2 rounded-full bg-red-400" />
             <span className="w-2 h-2 rounded-full bg-lime-400" />
             <span className="w-2 h-2 rounded-full bg-green-400" />
           </div>
-          <span className="font-semibold">
-            {stage === "stage2" ? "Stage 2: Development" : "Stage 1: Foundation"}
+          <span className="font-semibold truncate">
+            {stage === "stage2" ? "Stage 2" : "Stage 1"}
           </span>
-          <span className="text-[#7E776F]">·</span>
-          <span className="text-[#8A837A]">
+          <span className="text-[#7E776F] hidden sm:inline">·</span>
+          <span className="text-[#8A837A] hidden sm:inline">
             {stage === "stage2" ? "Stitch Board" : "Stitch Canvas"}
           </span>
-          <span className="text-[10px] text-[#A3E635] bg-[#A3E635]/15 px-2 py-0.5 rounded-full font-mono">
+          <span className="text-[10px] text-[#A3E635] bg-[#A3E635]/15 px-2 py-0.5 rounded-full font-mono shrink-0">
             {items?.length || 0} nodes
           </span>
         </div>
 
+        {/* Mobile Fullscreen Toggle on top-right */}
+        <button
+          onClick={() => setIsFullscreen((prev) => !prev)}
+          title={isFullscreen ? "Exit Fullscreen" : "Fullscreen Canvas"}
+          className="sm:hidden p-2 rounded-xl bg-[#1C1916]/90 backdrop-blur-md border border-[#2E2924] text-[#EDE6DD] shadow-lg pointer-events-auto active:scale-95 transition-transform"
+        >
+          {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4 text-[#A3E635]" />}
+        </button>
+
         {onSwitchToPosts && (
           <button
             onClick={onSwitchToPosts}
-            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-[#241F1B]/90 hover:bg-[#2F2923] backdrop-blur-md border border-[#3E3832] hover:border-[#A3E635] rounded-xl text-xs font-mono text-[#EDE6DD] transition-all shadow-lg"
+            className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-[#241F1B]/90 hover:bg-[#2F2923] backdrop-blur-md border border-[#3E3832] hover:border-[#A3E635] rounded-xl text-xs font-mono text-[#EDE6DD] transition-all shadow-lg pointer-events-auto"
           >
             <span>Switch to Iteration Posts 📝</span>
           </button>
         )}
       </div>
 
-      {/* Floating Minimal Tool Palette */}
+      {/* DESKTOP FLOATING TOOL PALETTE (Top-Right, sm:flex) */}
       {isEditable && (
-        <div className="absolute top-4 right-4 z-30 flex items-center gap-1.5 p-1.5 bg-[#1C1916]/90 backdrop-blur-md border border-[#2E2924] rounded-2xl shadow-xl">
+        <div className="hidden sm:flex absolute top-3 right-3 z-30 items-center gap-1.5 p-1.5 bg-[#1C1916]/90 backdrop-blur-md border border-[#2E2924] rounded-2xl shadow-xl">
           {/* Select Tool */}
           <button
             onClick={() => setActiveTool("select")}
@@ -499,11 +827,11 @@ export function StitchCanvas({
           {/* Add Sticky Note */}
           <button
             onClick={handleAddSticky}
-            title="Add Sticky Note (N)"
+            title="Add Sticky Note"
             className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#241F1B] hover:bg-[#2F2923] text-xs font-sans text-[#EDE6DD] border border-[#3E3832] transition-colors"
           >
             <StickyNote className="w-3.5 h-3.5 text-[#FFE066]" />
-            <span className="hidden sm:inline">Sticky</span>
+            <span>Sticky</span>
           </button>
 
           {/* Upload Any Media */}
@@ -513,16 +841,8 @@ export function StitchCanvas({
             className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#241F1B] hover:bg-[#2F2923] text-xs font-sans text-[#EDE6DD] border border-[#3E3832] transition-colors"
           >
             <Upload className="w-3.5 h-3.5 text-[#A3E635]" />
-            <span className="hidden sm:inline">Media</span>
+            <span>Media</span>
           </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept="image/*,video/*,audio/*,.pdf"
-            onChange={handleFileUploadInput}
-            className="hidden"
-          />
 
           {/* Add Section Frame */}
           <button
@@ -531,10 +851,19 @@ export function StitchCanvas({
             className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#241F1B] hover:bg-[#2F2923] text-xs font-sans text-[#EDE6DD] border border-[#3E3832] transition-colors"
           >
             <Square className="w-3.5 h-3.5 text-[#A9D8FF]" />
-            <span className="hidden sm:inline">Frame</span>
+            <span>Frame</span>
           </button>
 
           <div className="w-[1px] h-5 bg-[#2E2924] mx-1" />
+
+          {/* Fit to Screen (Overview) */}
+          <button
+            onClick={fitToScreen}
+            title="Fit All Items into Screen"
+            className="p-2 text-[#8A837A] hover:text-[#A3E635] hover:bg-[#2A2521] rounded-xl transition-colors"
+          >
+            <Scan className="w-4 h-4" />
+          </button>
 
           {/* Zoom controls */}
           <button
@@ -553,39 +882,53 @@ export function StitchCanvas({
             <ZoomOut className="w-4 h-4" />
           </button>
           <button
-            onClick={() => setTransform({ x: 120, y: 80, scale: 0.95 })}
+            onClick={() => setTransform({ x: 80, y: 60, scale: 0.9 })}
             title="Reset Canvas"
             className="p-2 text-[#8A837A] hover:text-[#EDE6DD] hover:bg-[#2A2521] rounded-xl transition-colors"
           >
             <RotateCcw className="w-3.5 h-3.5" />
           </button>
+
+          {/* Fullscreen desktop toggle */}
+          <button
+            onClick={() => setIsFullscreen((p) => !p)}
+            title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+            className="p-2 text-[#8A837A] hover:text-[#A3E635] hover:bg-[#2A2521] rounded-xl transition-colors"
+          >
+            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+          </button>
         </div>
       )}
 
-      {/* Uploading indicator */}
+      {/* Uploading indicator banner */}
       {isUploading && (
-        <div className="absolute top-16 right-4 z-30 flex items-center gap-2 px-3 py-1.5 bg-[#A3E635] text-[#171512] rounded-xl text-xs font-semibold shadow-xl animate-bounce">
-          <Loader2 className="w-4 h-4 animate-spin" />
-          <span>Compressing & placing on canvas...</span>
+        <div className="absolute top-14 left-1/2 -translate-x-1/2 sm:left-auto sm:right-4 sm:translate-x-0 z-40 flex items-center gap-2 px-3.5 py-1.5 bg-[#A3E635] text-[#171512] rounded-xl text-xs font-semibold shadow-2xl animate-bounce">
+          <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+          <span className="text-xs">Placing media on board...</span>
         </div>
       )}
 
-      {/* Main Infinite Canvas Plane */}
+      {/* MAIN INFINITE SPATIAL CANVAS PLANE */}
       <div
         ref={containerRef}
         onWheel={handleWheel}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
         onDragOver={(e) => e.preventDefault()}
         onDrop={handleFileDrop}
-        className={`relative flex-1 w-full h-full canvas-grid ${
+        style={{ touchAction: "none" }}
+        className={`relative flex-1 w-full h-full canvas-grid touch-none overflow-hidden ${
           activeTool === "hand" || isPanning ? "cursor-grab active:cursor-grabbing" : "cursor-default"
         }`}
       >
         <div
           id="canvas-plane"
-          className="absolute inset-0 origin-top-left"
+          className="absolute inset-0 origin-top-left touch-none"
           style={{
             transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
           }}
@@ -622,61 +965,110 @@ export function StitchCanvas({
                 }
               };
 
-              // Reusable Resize Handles Overlay
+              const handleItemTouchStart = (e: React.TouchEvent) => {
+                if (activeTool === "hand" || e.touches.length > 1) return;
+                e.stopPropagation();
+                setSelectedItemId(item._id);
+
+                if (isEditable) {
+                  setDraggedItemId(item._id);
+                  const t = e.touches[0];
+                  const rect = containerRef.current?.getBoundingClientRect();
+                  if (!rect) return;
+                  const touchCanvasX = (t.clientX - rect.left - transform.x) / transform.scale;
+                  const touchCanvasY = (t.clientY - rect.top - transform.y) / transform.scale;
+                  setDragOffset({
+                    x: touchCanvasX - dim.x,
+                    y: touchCanvasY - dim.y,
+                  });
+                }
+              };
+
+              // Reusable Touch-Friendly Resize Handles Overlay
               const renderResizeHandles = () => {
                 if (!isSelected || !isEditable) return null;
                 return (
                   <>
                     {/* Selection border ring */}
-                    <div className="absolute -inset-1 border-2 border-[#A3E635] rounded-xl pointer-events-none z-30" />
+                    <div className="absolute -inset-1 border-2 border-[#A3E635] rounded-xl pointer-events-none z-30 shadow-lg" />
 
-                    {/* 4 Corner handles */}
+                    {/* 4 Corner Handles with enlarged touch hit areas */}
                     <div
                       onMouseDown={(e) => handleResizeMouseDown(e, item, "nw")}
-                      className="absolute -top-2 -left-2 w-3.5 h-3.5 bg-[#A3E635] border-2 border-[#171512] rounded-sm pointer-events-auto cursor-nwse-resize hover:scale-125 transition-transform z-40 shadow-md"
+                      onTouchStart={(e) => handleResizeTouchStart(e, item, "nw")}
+                      className="absolute -top-4 -left-4 w-9 h-9 flex items-center justify-center pointer-events-auto cursor-nwse-resize z-40 touch-none"
                       title="Resize Top-Left"
-                    />
+                    >
+                      <div className="w-3.5 h-3.5 bg-[#A3E635] border-2 border-[#171512] rounded-sm shadow-md transition-transform hover:scale-125" />
+                    </div>
+
                     <div
                       onMouseDown={(e) => handleResizeMouseDown(e, item, "ne")}
-                      className="absolute -top-2 -right-2 w-3.5 h-3.5 bg-[#A3E635] border-2 border-[#171512] rounded-sm pointer-events-auto cursor-nesw-resize hover:scale-125 transition-transform z-40 shadow-md"
+                      onTouchStart={(e) => handleResizeTouchStart(e, item, "ne")}
+                      className="absolute -top-4 -right-4 w-9 h-9 flex items-center justify-center pointer-events-auto cursor-nesw-resize z-40 touch-none"
                       title="Resize Top-Right"
-                    />
+                    >
+                      <div className="w-3.5 h-3.5 bg-[#A3E635] border-2 border-[#171512] rounded-sm shadow-md transition-transform hover:scale-125" />
+                    </div>
+
                     <div
                       onMouseDown={(e) => handleResizeMouseDown(e, item, "se")}
-                      className="absolute -bottom-2 -right-2 w-3.5 h-3.5 bg-[#A3E635] border-2 border-[#171512] rounded-sm pointer-events-auto cursor-nwse-resize hover:scale-125 transition-transform z-40 shadow-md"
+                      onTouchStart={(e) => handleResizeTouchStart(e, item, "se")}
+                      className="absolute -bottom-4 -right-4 w-9 h-9 flex items-center justify-center pointer-events-auto cursor-nwse-resize z-40 touch-none"
                       title="Resize Bottom-Right"
-                    />
+                    >
+                      <div className="w-3.5 h-3.5 bg-[#A3E635] border-2 border-[#171512] rounded-sm shadow-md transition-transform hover:scale-125" />
+                    </div>
+
                     <div
                       onMouseDown={(e) => handleResizeMouseDown(e, item, "sw")}
-                      className="absolute -bottom-2 -left-2 w-3.5 h-3.5 bg-[#A3E635] border-2 border-[#171512] rounded-sm pointer-events-auto cursor-nesw-resize hover:scale-125 transition-transform z-40 shadow-md"
+                      onTouchStart={(e) => handleResizeTouchStart(e, item, "sw")}
+                      className="absolute -bottom-4 -left-4 w-9 h-9 flex items-center justify-center pointer-events-auto cursor-nesw-resize z-40 touch-none"
                       title="Resize Bottom-Left"
-                    />
+                    >
+                      <div className="w-3.5 h-3.5 bg-[#A3E635] border-2 border-[#171512] rounded-sm shadow-md transition-transform hover:scale-125" />
+                    </div>
 
-                    {/* 4 Edge handles */}
+                    {/* 4 Edge Handles */}
                     <div
                       onMouseDown={(e) => handleResizeMouseDown(e, item, "n")}
-                      className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-4 h-2 bg-[#A3E635] border border-[#171512] rounded-full pointer-events-auto cursor-ns-resize hover:scale-125 transition-transform z-40 shadow-md"
+                      onTouchStart={(e) => handleResizeTouchStart(e, item, "n")}
+                      className="absolute -top-3 left-1/2 -translate-x-1/2 w-10 h-7 flex items-center justify-center pointer-events-auto cursor-ns-resize z-40 touch-none"
                       title="Resize Top"
-                    />
+                    >
+                      <div className="w-4 h-2 bg-[#A3E635] border border-[#171512] rounded-full shadow-md transition-transform hover:scale-125" />
+                    </div>
+
                     <div
                       onMouseDown={(e) => handleResizeMouseDown(e, item, "s")}
-                      className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-4 h-2 bg-[#A3E635] border border-[#171512] rounded-full pointer-events-auto cursor-ns-resize hover:scale-125 transition-transform z-40 shadow-md"
+                      onTouchStart={(e) => handleResizeTouchStart(e, item, "s")}
+                      className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-10 h-7 flex items-center justify-center pointer-events-auto cursor-ns-resize z-40 touch-none"
                       title="Resize Bottom"
-                    />
+                    >
+                      <div className="w-4 h-2 bg-[#A3E635] border border-[#171512] rounded-full shadow-md transition-transform hover:scale-125" />
+                    </div>
+
                     <div
                       onMouseDown={(e) => handleResizeMouseDown(e, item, "w")}
-                      className="absolute top-1/2 -left-1.5 -translate-y-1/2 w-2 h-4 bg-[#A3E635] border border-[#171512] rounded-full pointer-events-auto cursor-ew-resize hover:scale-125 transition-transform z-40 shadow-md"
+                      onTouchStart={(e) => handleResizeTouchStart(e, item, "w")}
+                      className="absolute top-1/2 -translate-y-1/2 -left-3 w-7 h-10 flex items-center justify-center pointer-events-auto cursor-ew-resize z-40 touch-none"
                       title="Resize Left"
-                    />
+                    >
+                      <div className="w-2 h-4 bg-[#A3E635] border border-[#171512] rounded-full shadow-md transition-transform hover:scale-125" />
+                    </div>
+
                     <div
                       onMouseDown={(e) => handleResizeMouseDown(e, item, "e")}
-                      className="absolute top-1/2 -right-1.5 -translate-y-1/2 w-2 h-4 bg-[#A3E635] border border-[#171512] rounded-full pointer-events-auto cursor-ew-resize hover:scale-125 transition-transform z-40 shadow-md"
+                      onTouchStart={(e) => handleResizeTouchStart(e, item, "e")}
+                      className="absolute top-1/2 -translate-y-1/2 -right-3 w-7 h-10 flex items-center justify-center pointer-events-auto cursor-ew-resize z-40 touch-none"
                       title="Resize Right"
-                    />
+                    >
+                      <div className="w-2 h-4 bg-[#A3E635] border border-[#171512] rounded-full shadow-md transition-transform hover:scale-125" />
+                    </div>
 
                     {/* Live Dimension Indicator Badge */}
                     {isResizingThis && (
-                      <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-[#171512] text-[#A3E635] border border-[#A3E635]/50 rounded-md text-[10px] font-mono shadow-xl whitespace-nowrap z-50">
+                      <div className="absolute -bottom-9 left-1/2 -translate-x-1/2 px-2.5 py-0.5 bg-[#171512] text-[#A3E635] border border-[#A3E635]/50 rounded-md text-[11px] font-mono shadow-2xl whitespace-nowrap z-50">
                         {dim.width} × {dim.height} px
                       </div>
                     )}
@@ -690,12 +1082,14 @@ export function StitchCanvas({
                   <div
                     key={item._id}
                     onMouseDown={handleItemMouseDown}
+                    onTouchStart={handleItemTouchStart}
                     style={{
                       left: dim.x,
                       top: dim.y,
                       width: dim.width,
                       height: dim.height,
                       zIndex: item.zIndex || 1,
+                      touchAction: "none",
                     }}
                     className={`absolute rounded-2xl border-2 border-dashed transition-shadow ${
                       isSelected
@@ -703,8 +1097,8 @@ export function StitchCanvas({
                         : "border-[#3D3630] bg-[#1C1A17]/30 hover:border-[#524941]"
                     }`}
                   >
-                    <div className="flex items-center justify-between px-4 py-2 bg-[#221E1A] border-b border-[#2E2924] rounded-t-xl cursor-move">
-                      <span className="text-xs font-mono font-semibold text-[#EDE6DD]">
+                    <div className="flex items-center justify-between px-3 py-2 bg-[#221E1A] border-b border-[#2E2924] rounded-t-xl cursor-move">
+                      <span className="text-xs font-mono font-semibold text-[#EDE6DD] truncate">
                         {item.title || "Section Frame"}
                       </span>
                       {isSelected && isEditable && (
@@ -727,6 +1121,7 @@ export function StitchCanvas({
                   <div
                     key={item._id}
                     onMouseDown={handleItemMouseDown}
+                    onTouchStart={handleItemTouchStart}
                     style={{
                       left: dim.x,
                       top: dim.y,
@@ -736,18 +1131,24 @@ export function StitchCanvas({
                       transform: `rotate(${item.rotation || 0}deg)`,
                       backgroundColor: item.color || "#FFE066",
                       zIndex: item.zIndex || 10,
+                      touchAction: "none",
                     }}
-                    className={`absolute p-4 rounded-sm shadow-xl font-hand cursor-move ${
-                      isSelected ? "ring-2 ring-[#A3E635] ring-offset-2 ring-offset-black scale-[1.01]" : "hover:scale-[1.005]"
+                    className={`absolute p-3 sm:p-4 rounded-sm shadow-xl font-hand cursor-move ${
+                      isSelected
+                        ? "ring-2 ring-[#A3E635] ring-offset-2 ring-offset-black scale-[1.01]"
+                        : "hover:scale-[1.005]"
                     }`}
                   >
                     {isSelected && isEditable && (
-                      <div className="absolute -top-3 -right-3 flex items-center gap-1 z-50 bg-[#171512] p-1 rounded-full border border-[#3E3832]">
+                      <div className="absolute -top-3 -right-3 flex items-center gap-1 z-50 bg-[#171512] p-1 rounded-full border border-[#3E3832] shadow-md">
                         <button
-                          onClick={() => deleteItemMutation({ itemId: item._id as any })}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteItemMutation({ itemId: item._id as any });
+                          }}
                           className="p-1 text-red-400 hover:text-red-300"
                         >
-                          <Trash2 className="w-3 h-3" />
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     )}
@@ -758,6 +1159,7 @@ export function StitchCanvas({
                           e.stopPropagation();
                           setSelectedItemId(item._id);
                         }}
+                        onTouchStart={(e) => e.stopPropagation()}
                         value={item.content}
                         onChange={(e) =>
                           updateContentMutation({
@@ -781,6 +1183,7 @@ export function StitchCanvas({
                   <div
                     key={item._id}
                     onMouseDown={handleItemMouseDown}
+                    onTouchStart={handleItemTouchStart}
                     style={{
                       left: dim.x,
                       top: dim.y,
@@ -788,15 +1191,21 @@ export function StitchCanvas({
                       height: dim.height ? `${dim.height}px` : "auto",
                       transform: `rotate(${item.rotation || 0}deg)`,
                       zIndex: item.zIndex || 5,
+                      touchAction: "none",
                     }}
                     className={`absolute rounded-xl overflow-hidden bg-[#241F1B] border transition-all cursor-move shadow-xl flex flex-col ${
-                      isSelected ? "border-[#A3E635] ring-2 ring-[#A3E635]/50 scale-[1.01]" : "border-[#342D26] hover:border-[#4E443A]"
+                      isSelected
+                        ? "border-[#A3E635] ring-2 ring-[#A3E635]/50 scale-[1.01]"
+                        : "border-[#342D26] hover:border-[#4E443A]"
                     }`}
                   >
                     {isSelected && isEditable && (
                       <div className="absolute top-2 right-2 flex items-center gap-1 z-50 bg-[#171512]/90 p-1 rounded-lg border border-[#3E3832]">
                         <button
-                          onClick={() => deleteItemMutation({ itemId: item._id as any })}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteItemMutation({ itemId: item._id as any });
+                          }}
                           className="p-1 text-red-400 hover:text-red-300"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -809,7 +1218,7 @@ export function StitchCanvas({
                       className="w-full flex-1 min-h-0 object-cover pointer-events-none rounded-t-xl"
                     />
                     {item.metadata?.caption && (
-                      <div className="p-2 bg-[#1C1A17] text-[11px] font-mono text-[#8A837A] shrink-0 border-t border-[#2E2924]">
+                      <div className="p-2 bg-[#1C1A17] text-[11px] font-mono text-[#8A837A] shrink-0 border-t border-[#2E2924] truncate">
                         {item.metadata.caption}
                       </div>
                     )}
@@ -824,11 +1233,13 @@ export function StitchCanvas({
                   <div
                     key={item._id}
                     onMouseDown={handleItemMouseDown}
+                    onTouchStart={handleItemTouchStart}
                     style={{
                       left: dim.x,
                       top: dim.y,
                       width: dim.width,
                       zIndex: item.zIndex || 5,
+                      touchAction: "none",
                     }}
                     className={`absolute p-4 rounded-xl bg-[#241F1B] border border-[#342D26] shadow-xl flex flex-col gap-2 cursor-move ${
                       isSelected ? "border-[#A3E635] ring-2 ring-[#A3E635]/50" : ""
@@ -841,7 +1252,10 @@ export function StitchCanvas({
                       </div>
                       {isSelected && isEditable && (
                         <button
-                          onClick={() => deleteItemMutation({ itemId: item._id as any })}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteItemMutation({ itemId: item._id as any });
+                          }}
                           className="p-1 text-red-400"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -860,12 +1274,14 @@ export function StitchCanvas({
                   <div
                     key={item._id}
                     onMouseDown={handleItemMouseDown}
+                    onTouchStart={handleItemTouchStart}
                     style={{
                       left: dim.x,
                       top: dim.y,
                       width: dim.width,
                       height: dim.height ? `${dim.height}px` : "auto",
                       zIndex: item.zIndex || 5,
+                      touchAction: "none",
                     }}
                     className={`absolute rounded-xl overflow-hidden bg-[#241F1B] border shadow-xl cursor-move flex flex-col ${
                       isSelected ? "border-[#A3E635]" : "border-[#342D26]"
@@ -874,7 +1290,10 @@ export function StitchCanvas({
                     {isSelected && isEditable && (
                       <div className="absolute top-2 right-2 z-50">
                         <button
-                          onClick={() => deleteItemMutation({ itemId: item._id as any })}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteItemMutation({ itemId: item._id as any });
+                          }}
                           className="p-1 rounded bg-[#171512] text-red-400"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -894,12 +1313,14 @@ export function StitchCanvas({
                   <div
                     key={item._id}
                     onMouseDown={handleItemMouseDown}
+                    onTouchStart={handleItemTouchStart}
                     style={{
                       left: dim.x,
                       top: dim.y,
                       width: dim.width,
                       height: dim.height,
                       zIndex: item.zIndex || 5,
+                      touchAction: "none",
                     }}
                     className={`absolute rounded-xl overflow-hidden bg-[#241F1B] border shadow-xl cursor-move ${
                       isSelected
@@ -916,7 +1337,10 @@ export function StitchCanvas({
                       </div>
                       {isSelected && isEditable && (
                         <button
-                          onClick={() => deleteItemMutation({ itemId: item._id as any })}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteItemMutation({ itemId: item._id as any });
+                          }}
                           className="p-1 text-red-400 hover:text-red-300"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -947,14 +1371,158 @@ export function StitchCanvas({
         </div>
       </div>
 
-      {/* Bottom Stage 1 Footer & Next Stage Action */}
-      <div className="absolute bottom-4 left-4 right-4 z-30 flex items-center justify-between pointer-events-none">
-        <div className="px-3.5 py-1.5 bg-[#171512]/90 backdrop-blur-md border border-[#2E2924] rounded-xl text-xs font-mono text-[#8A837A] pointer-events-auto shadow-lg hidden sm:flex items-center gap-2">
-          <span>Pan: Space+Drag or Hand</span>
+      {/* MOBILE CONTEXTUAL ACTION BAR (When an item is selected on mobile) */}
+      {selectedItem && isEditable && (
+        <div className="sm:hidden absolute bottom-20 left-4 right-4 z-40 flex items-center justify-between gap-2 p-2 bg-[#1C1916]/95 backdrop-blur-xl border border-[#3E3832] rounded-2xl shadow-2xl animate-fade-in">
+          {selectedItem.type === "text_sticky" ? (
+            <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 max-w-[calc(100%-80px)] scrollbar-none">
+              {STICKY_COLORS.map((col) => (
+                <button
+                  key={col.name}
+                  onClick={() =>
+                    updateContentMutation({
+                      itemId: selectedItem._id as any,
+                      color: col.bg,
+                    })
+                  }
+                  style={{ backgroundColor: col.bg }}
+                  className={`w-6 h-6 rounded-full shrink-0 border-2 transition-transform ${
+                    selectedItem.color === col.bg
+                      ? "border-[#171512] ring-2 ring-[#A3E635] scale-110"
+                      : "border-[#171512]/50 hover:scale-105"
+                  }`}
+                  title={col.name}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 px-2 text-xs font-mono text-[#EDE6DD] truncate">
+              <span className="text-[#A3E635] uppercase text-[10px] font-bold">
+                {selectedItem.type}
+              </span>
+              <span className="truncate">{selectedItem.title || "Selected Item"}</span>
+            </div>
+          )}
+
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              onClick={() => {
+                deleteItemMutation({ itemId: selectedItem._id as any });
+                setSelectedItemId(null);
+              }}
+              className="p-2 rounded-xl bg-red-500/15 text-red-400 hover:bg-red-500/25 transition-colors"
+              title="Delete Item"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setSelectedItemId(null)}
+              className="p-2 rounded-xl bg-[#2E2924] text-[#8A837A] hover:text-[#EDE6DD] transition-colors"
+              title="Deselect"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MOBILE FLOATING BOTTOM DOCK (Thumb Ergonomics on Phones) */}
+      <div className="sm:hidden absolute bottom-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 p-1.5 bg-[#1C1916]/95 backdrop-blur-xl border border-[#2E2924] rounded-2xl shadow-2xl max-w-[calc(100%-24px)] overflow-x-auto">
+        {isEditable ? (
+          <>
+            {/* Mode Switcher: Select vs Hand */}
+            <div className="flex items-center bg-[#141210] p-0.5 rounded-xl border border-[#2E2924]">
+              <button
+                onClick={() => setActiveTool("select")}
+                className={`p-2 rounded-lg transition-all ${
+                  activeTool === "select"
+                    ? "bg-[#A3E635] text-[#171512] font-bold shadow-sm"
+                    : "text-[#8A837A]"
+                }`}
+                title="Select & Move"
+              >
+                <MousePointer className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setActiveTool("hand")}
+                className={`p-2 rounded-lg transition-all ${
+                  activeTool === "hand"
+                    ? "bg-[#A3E635] text-[#171512] font-bold shadow-sm"
+                    : "text-[#8A837A]"
+                }`}
+                title="Pan Mode"
+              >
+                <Hand className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="w-[1px] h-5 bg-[#2E2924] mx-0.5" />
+
+            {/* Quick Add Sticky */}
+            <button
+              onClick={handleAddSticky}
+              className="flex items-center gap-1 p-2 rounded-xl bg-[#241F1B] active:bg-[#2F2923] text-xs font-mono text-[#EDE6DD] border border-[#3E3832]"
+              title="Add Sticky"
+            >
+              <StickyNote className="w-4 h-4 text-[#FFE066]" />
+            </button>
+
+            {/* Quick Add Media */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-1 p-2 rounded-xl bg-[#241F1B] active:bg-[#2F2923] text-xs font-mono text-[#EDE6DD] border border-[#3E3832]"
+              title="Upload Media"
+            >
+              <Upload className="w-4 h-4 text-[#A3E635]" />
+            </button>
+
+            {/* Quick Add Frame */}
+            <button
+              onClick={handleAddFrame}
+              className="flex items-center gap-1 p-2 rounded-xl bg-[#241F1B] active:bg-[#2F2923] text-xs font-mono text-[#EDE6DD] border border-[#3E3832]"
+              title="Add Frame"
+            >
+              <Square className="w-4 h-4 text-[#A9D8FF]" />
+            </button>
+
+            <div className="w-[1px] h-5 bg-[#2E2924] mx-0.5" />
+          </>
+        ) : null}
+
+        {/* Fit to Screen (Overview) */}
+        <button
+          onClick={fitToScreen}
+          className="p-2 rounded-xl bg-[#241F1B] text-[#A3E635] active:bg-[#2F2923] border border-[#3E3832]"
+          title="Fit to Screen"
+        >
+          <Scan className="w-4 h-4" />
+        </button>
+
+        {/* Zoom Out & In */}
+        <button
+          onClick={() => setTransform((p) => ({ ...p, scale: Math.max(p.scale * 0.8, 0.25) }))}
+          className="p-2 text-[#8A837A] active:text-[#EDE6DD]"
+          title="Zoom Out"
+        >
+          <ZoomOut className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => setTransform((p) => ({ ...p, scale: Math.min(p.scale * 1.2, 2.5) }))}
+          className="p-2 text-[#8A837A] active:text-[#EDE6DD]"
+          title="Zoom In"
+        >
+          <ZoomIn className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* DESKTOP BOTTOM STAGE BAR (sm:flex) */}
+      <div className="hidden sm:flex absolute bottom-4 left-4 right-4 z-30 items-center justify-between pointer-events-none">
+        <div className="px-3.5 py-1.5 bg-[#171512]/90 backdrop-blur-md border border-[#2E2924] rounded-xl text-xs font-mono text-[#8A837A] pointer-events-auto shadow-lg flex items-center gap-2">
+          <span>Pan: Space+Drag / 2 Fingers</span>
           <span>·</span>
-          <span>Zoom: Mouse Wheel</span>
+          <span>Zoom: Wheel / Pinch</span>
           <span>·</span>
-          <span>Select element to drag & resize corners/edges</span>
+          <span>Double-tap: Fit all</span>
         </div>
 
         {onNavigateNext ? (
