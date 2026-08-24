@@ -6,7 +6,7 @@ export const S3_BUCKET_NAME = process.env.S3_BUCKET_NAME || "pickle-art-s3-stora
 export const s3Client = new S3Client({
   region: AWS_REGION,
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY || "",
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID || "",
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "",
   },
 });
