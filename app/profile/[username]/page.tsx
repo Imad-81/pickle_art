@@ -23,7 +23,8 @@ import Link from "next/link";
 
 export default function ProfilePage() {
   const params = useParams();
-  const username = (params.username as string) || "aarohisen";
+  const rawUsername = (params?.username as string) || "aarohisen";
+  const username = decodeURIComponent(rawUsername).replace(/^@/, "");
   const { user, openAuthModal } = useAuth();
 
   const [activeTab, setActiveTab] = useState<"all" | "in_progress" | "complete">("all");

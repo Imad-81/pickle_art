@@ -2,6 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useAuth } from "@/components/providers/AuthProvider";
@@ -18,6 +19,7 @@ import {
 } from "lucide-react";
 
 export function ProjectCard({ project }: { project: any }) {
+  const router = useRouter();
   const { user, openAuthModal } = useAuth();
   const isFollowing = useQuery(
     api.follows.isFollowing,
@@ -110,13 +112,21 @@ export function ProjectCard({ project }: { project: any }) {
         <div>
           {/* Creator row */}
           <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
+            <div
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                router.push(`/profile/${project.creatorUsername}`);
+              }}
+              className="flex items-center gap-2 group/creator hover:opacity-85 transition-opacity cursor-pointer"
+              title={`View @${project.creatorUsername}'s profile`}
+            >
               <img
                 src={project.creatorAvatar}
                 alt={project.creatorName}
-                className="w-6 h-6 rounded-full object-cover border border-[#3E3832]"
+                className="w-6 h-6 rounded-full object-cover border border-[#3E3832] group-hover/creator:border-[#A3E635] transition-colors"
               />
-              <span className="text-xs font-sans text-[#EDE6DD] font-medium truncate max-w-[130px]">
+              <span className="text-xs font-sans text-[#EDE6DD] font-medium truncate max-w-[130px] group-hover/creator:text-[#A3E635] group-hover/creator:underline transition-colors">
                 {project.creatorName}
               </span>
             </div>

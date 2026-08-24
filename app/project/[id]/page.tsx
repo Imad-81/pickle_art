@@ -111,7 +111,14 @@ export default function ProjectPage() {
               {project.title}
             </h1>
             <div className="text-[10px] font-mono text-[#8A837A]">
-              by @{project.creatorUsername} · {project.discipline}
+              by{" "}
+              <Link
+                href={`/profile/${project.creatorUsername}`}
+                className="text-[#EDE6DD] hover:text-[#A3E635] hover:underline transition-colors"
+              >
+                @{project.creatorUsername}
+              </Link>{" "}
+              · {project.discipline}
             </div>
           </div>
         </div>
@@ -271,27 +278,27 @@ export default function ProjectPage() {
             <div className="space-y-6">
               {/* Creator Card */}
               <div className="p-6 bg-[#1C1A17] border border-[#2E2924] rounded-2xl space-y-4 shadow-xl">
-                <div className="flex items-center gap-3">
+                <Link
+                  href={`/profile/${project.creatorUsername}`}
+                  className="flex items-center gap-3 group hover:opacity-95 transition-opacity"
+                >
                   <img
                     src={project.creatorAvatar}
                     alt={project.creatorName}
-                    className="w-14 h-14 rounded-full object-cover border-2 border-[#A3E635]"
+                    className="w-14 h-14 rounded-full object-cover border-2 border-[#A3E635] group-hover:border-white transition-colors"
                   />
                   <div>
-                    <h3 className="text-base font-serif font-bold text-[#EDE6DD]">
+                    <h3 className="text-base font-serif font-bold text-[#EDE6DD] group-hover:text-[#A3E635] transition-colors">
                       {project.creatorName}
                     </h3>
-                    <div className="text-xs font-mono text-[#7E776F]">
+                    <div className="text-xs font-mono text-[#7E776F] group-hover:text-[#EDE6DD] transition-colors">
                       @{project.creatorUsername}
                     </div>
-                    <Link
-                      href={`/profile/${project.creatorUsername}`}
-                      className="text-xs font-mono text-[#A3E635] hover:underline block mt-0.5"
-                    >
+                    <span className="text-xs font-mono text-[#A3E635] hover:underline block mt-0.5">
                       View Growth Trail →
-                    </Link>
+                    </span>
                   </div>
-                </div>
+                </Link>
 
                 {/* Follow Button */}
                 {user && user.id !== project.creatorId && (

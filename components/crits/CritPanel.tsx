@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useAuth } from "@/components/providers/AuthProvider";
@@ -352,14 +353,17 @@ export function CritPanel({
               >
                 {/* Author row */}
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
+                  <Link
+                    href={`/profile/${crit.authorUsername}`}
+                    className="flex items-center gap-2.5 group hover:opacity-90 transition-opacity"
+                  >
                     <img
                       src={crit.authorAvatar}
                       alt={crit.authorName}
-                      className="w-8 h-8 rounded-full object-cover border border-[#3E3832]"
+                      className="w-8 h-8 rounded-full object-cover border border-[#3E3832] group-hover:border-[#A3E635] transition-colors"
                     />
                     <div>
-                      <div className="text-xs font-semibold text-[#EDE6DD] flex items-center gap-2">
+                      <div className="text-xs font-semibold text-[#EDE6DD] group-hover:text-[#A3E635] transition-colors flex items-center gap-2">
                         <span>{crit.authorName}</span>
                         {getStageBadge(crit.targetStage)}
                         {crit.isPinned && (
@@ -368,7 +372,7 @@ export function CritPanel({
                           </span>
                         )}
                       </div>
-                      <div className="text-[10px] text-[#7E776F] font-mono mt-0.5">
+                      <div className="text-[10px] text-[#7E776F] group-hover:text-[#EDE6DD] font-mono mt-0.5 transition-colors">
                         @{crit.authorUsername} ·{" "}
                         {new Date(crit.createdAt).toLocaleDateString([], {
                           month: "short",
@@ -376,7 +380,7 @@ export function CritPanel({
                         })}
                       </div>
                     </div>
-                  </div>
+                  </Link>
 
                   <div className="flex items-center gap-2">
                     <button
