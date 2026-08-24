@@ -4,13 +4,20 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/providers/AuthProvider";
-import { Search, Plus, Compass, User, LogIn, ChevronDown, Sparkles, BookOpen, Layers, LogOut } from "lucide-react";
+import { Search, Plus, Compass, User, LogIn, ChevronDown, Sparkles, BookOpen, Layers, LogOut, MessageSquare } from "lucide-react";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 
 export function Navbar() {
   const { user, openAuthModal, switchPersona, logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [isProfileMenuOpen, setProfileMenuOpen] = useState(false);
   const router = useRouter();
+
+  const pendingRequestsCount = useQuery(
+    api.messages.getPendingRequestCount,
+    user ? { userId: user.id } : "skip"
+  );
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,6 +61,20 @@ export function Navbar() {
 
       {/* Actions */}
       <div className="flex items-center gap-3">
+        {/* Messages Hub Button with badge */}
+        <Link
+          href="/messages"
+          className="relative p-2 rounded-full bg-[#241F1B] hover:bg-[#2D2722] border border-[#342D26] hover:border-[#A3E635] text-[#8A837A] hover:text-[#EDE6DD] transition-all"
+          title="Studio Messages & DMs"
+        >
+          <MessageSquare className="w-4 h-4" />
+          {(pendingRequestsCount ?? 0) > 0 && (
+            <span className="absolute -top-1 -right-1 px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-[#E08B3F] text-black">
+              {pendingRequestsCount}
+            </span>
+          )}
+        </Link>
+
         {/* Create Project Button */}
         <Link
           href="/project/create"
@@ -106,7 +127,22 @@ export function Navbar() {
                     <span>View Profile & Trail</span>
                   </Link>
                   <Link
-                    href="/messages"
+                    href="/messages?tab=dm"
+                    onClick={() => setProfileMenuOpen(false)}
+                    className="flex items-center justify-between px-3.5 py-2 text-xs text-[#EDE6DD] hover:bg-[#2A2521] transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <MessageSquare className="w-4 h-4 text-[#8A837A]" />
+                      <span>Direct Messages</span>
+                    </div>
+                    {(pendingRequestsCount ?? 0) > 0 && (
+                      <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-[#E08B3F] text-black font-mono">
+                        {pendingRequestsCount} req
+                      </span>
+                    )}
+                  </Link>
+                  <Link
+                    href="/messages?tab=feedback_notes"
                     onClick={() => setProfileMenuOpen(false)}
                     className="flex items-center gap-2 px-3.5 py-2 text-xs text-[#EDE6DD] hover:bg-[#2A2521] transition-colors"
                   >

@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { resolveMediaUrl } from "@/lib/media";
 import { FeedbackNotesView } from "@/components/feedback/FeedbackNotesView";
+import { DirectMessagesView } from "@/components/messages/DirectMessagesView";
 import { LeaveChannelModal } from "@/components/channels/LeaveChannelModal";
 import {
   Hash,
@@ -15,27 +17,41 @@ import {
   Plus,
   Users,
   LogOut,
-  Image as ImageIcon,
-  Paperclip,
   Sparkles,
-  ExternalLink,
 } from "lucide-react";
-import Link from "next/link";
 
-export default function MessagesHubPage() {
+function MessagesHubContent() {
+  const searchParams = useSearchParams();
+  const initialTab = (searchParams.get("tab") as "dm" | "channels" | "feedback_notes") || "dm";
+  const initialTargetUserId = searchParams.get("user");
+  const initialConversationId = searchParams.get("conv");
+
   const { user, openAuthModal } = useAuth();
-  const [activeTab, setActiveTab] = useState<"channels" | "feedback_notes">("channels");
+  const [activeTab, setActiveTab] = useState<"dm" | "channels" | "feedback_notes">(initialTab);
   const [activeChannelSlug, setActiveChannelSlug] = useState("packaging");
   const [messageText, setMessageText] = useState("");
   const [isLeaveModalOpen, setLeaveModalOpen] = useState(false);
+
+  // Switch tab if URL query changes
+  useEffect(() => {
+    if (initialTargetUserId || initialConversationId) {
+      setActiveTab("dm");
+    } else if (searchParams.get("tab")) {
+      setActiveTab(searchParams.get("tab") as any);
+    }
+  }, [searchParams, initialTargetUserId, initialConversationId]);
 
   const channels = useQuery(api.channels.listChannels, {});
   const channelMessages = useQuery(api.channels.getChannelMessages, {
     channelSlug: activeChannelSlug,
   });
 
+  const pendingRequestsCount = useQuery(
+    api.messages.getPendingRequestCount,
+    user ? { userId: user.id } : "skip"
+  );
+
   const sendMessageMutation = useMutation(api.channels.sendChannelMessage);
-  const joinChannelMutation = useMutation(api.channels.joinChannel);
   const leaveChannelMutation = useMutation(api.channels.leaveChannel);
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -74,29 +90,50 @@ export default function MessagesHubPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 bg-[#1C1A17] border border-[#2E2924] rounded-2xl shadow-xl">
         <div>
           <h1 className="text-xl font-serif font-bold text-[#EDE6DD]">
-            Studio Notes & Channel Chats
+            Studio Messages & Notes
           </h1>
           <p className="text-xs text-[#8A837A] font-sans">
-            Real-time discipline rooms and your personal feedback repository.
+            Direct creator messaging, discipline rooms, and your personal feedback repository.
           </p>
         </div>
 
-        {/* Tab switch */}
-        <div className="flex items-center gap-1.5 p-1 bg-[#141210] border border-[#2E2924] rounded-xl self-start sm:self-auto">
+        {/* Tab switch (DM, Channels, Feedback Notes) */}
+        <div className="flex items-center gap-1 p-1 bg-[#141210] border border-[#2E2924] rounded-xl self-start sm:self-auto overflow-x-auto max-w-full">
+          {/* 1. Direct Messages Tab */}
+          <button
+            onClick={() => setActiveTab("dm")}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-mono transition-all shrink-0 ${
+              activeTab === "dm"
+                ? "bg-[#2A2521] text-[#A3E635] font-semibold border border-[#3E3832]"
+                : "text-[#8A837A] hover:text-[#EDE6DD]"
+            }`}
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            <span>Direct Messages</span>
+            {(pendingRequestsCount ?? 0) > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-[#E08B3F] text-black">
+                {pendingRequestsCount}
+              </span>
+            )}
+          </button>
+
+          {/* 2. Discipline Channels Tab */}
           <button
             onClick={() => setActiveTab("channels")}
-            className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-mono transition-all ${
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-mono transition-all shrink-0 ${
               activeTab === "channels"
                 ? "bg-[#2A2521] text-[#A3E635] font-semibold border border-[#3E3832]"
                 : "text-[#8A837A] hover:text-[#EDE6DD]"
             }`}
           >
             <Hash className="w-3.5 h-3.5" />
-            <span>Discipline Channels</span>
+            <span>Discipline Rooms</span>
           </button>
+
+          {/* 3. Feedback Notebook Tab */}
           <button
             onClick={() => setActiveTab("feedback_notes")}
-            className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-mono transition-all ${
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-mono transition-all shrink-0 ${
               activeTab === "feedback_notes"
                 ? "bg-[#2A2521] text-[#A3E635] font-semibold border border-[#3E3832]"
                 : "text-[#8A837A] hover:text-[#EDE6DD]"
@@ -108,10 +145,18 @@ export default function MessagesHubPage() {
         </div>
       </div>
 
-      {/* 1. FEEDBACK NOTES TAB */}
+      {/* 1. DIRECT MESSAGES TAB */}
+      {activeTab === "dm" && (
+        <DirectMessagesView
+          initialTargetUserId={initialTargetUserId}
+          initialConversationId={initialConversationId}
+        />
+      )}
+
+      {/* 2. FEEDBACK NOTES TAB */}
       {activeTab === "feedback_notes" && <FeedbackNotesView />}
 
-      {/* 2. CHANNELS CHAT TAB */}
+      {/* 3. CHANNELS CHAT TAB */}
       {activeTab === "channels" && (
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[72vh] min-h-[500px]">
           {/* Channel Sidebar */}
@@ -184,7 +229,7 @@ export default function MessagesHubPage() {
                 </div>
               </div>
 
-              {/* Leave Channel button matching wireframe */}
+              {/* Leave Channel button */}
               <button
                 onClick={() => setLeaveModalOpen(true)}
                 className="p-1.5 px-2.5 rounded-lg bg-[#241F1B] hover:bg-[#342D26] text-xs font-mono text-[#8A837A] hover:text-red-400 flex items-center gap-1 transition-colors"
@@ -217,7 +262,11 @@ export default function MessagesHubPage() {
                         className="w-7 h-7 rounded-full object-cover shrink-0 mt-0.5"
                       />
                       <div className="space-y-1">
-                        <div className={`flex items-center gap-2 text-[10px] font-mono ${isMe ? "justify-end text-[#A3E635]" : "text-[#8A837A]"}`}>
+                        <div
+                          className={`flex items-center gap-2 text-[10px] font-mono ${
+                            isMe ? "justify-end text-[#A3E635]" : "text-[#8A837A]"
+                          }`}
+                        >
                           <span className="font-semibold">{msg.senderName}</span>
                           <span>
                             {new Date(msg.createdAt).toLocaleTimeString([], {
@@ -297,5 +346,19 @@ export default function MessagesHubPage() {
         onCancel={() => setLeaveModalOpen(false)}
       />
     </div>
+  );
+}
+
+export default function MessagesHubPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-[70vh] flex items-center justify-center text-xs font-mono text-[#8A837A]">
+          Loading Studio Messages...
+        </div>
+      }
+    >
+      <MessagesHubContent />
+    </Suspense>
   );
 }

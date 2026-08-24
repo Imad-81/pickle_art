@@ -217,11 +217,30 @@ export default defineSchema({
     .index("by_channel", ["channelSlug"])
     .index("by_pair", ["userId", "channelSlug"]),
 
+  conversations: defineTable({
+    user1Id: v.string(), // Canonical lexicographically ordered user ID
+    user2Id: v.string(), // Canonical lexicographically ordered user ID
+    participantIds: v.array(v.string()),
+    initiatorId: v.string(),
+    recipientId: v.string(),
+    status: v.union(v.literal("accepted"), v.literal("pending"), v.literal("declined")),
+    lastMessageText: v.optional(v.string()),
+    lastMessageAt: v.number(),
+    lastSenderId: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_pair", ["user1Id", "user2Id"])
+    .index("by_user1", ["user1Id", "status"])
+    .index("by_user2", ["user2Id", "status"])
+    .index("by_recipient_status", ["recipientId", "status"])
+    .index("by_last_message", ["lastMessageAt"]),
+
   messages: defineTable({
     senderId: v.string(),
     senderName: v.string(),
     senderAvatar: v.string(),
-    conversationId: v.optional(v.string()), // for direct messages e.g. "userA_userB"
+    conversationId: v.optional(v.string()), // for direct messages e.g. "userA_userB" or conversation ID
     channelSlug: v.optional(v.string()), // for channel chat e.g. "packaging"
     receiverId: v.optional(v.string()),
     text: v.string(),
@@ -235,6 +254,7 @@ export default defineSchema({
         cardCover: v.optional(v.string()),
       })
     ),
+    isRead: v.optional(v.boolean()),
     createdAt: v.number(),
   })
     .index("by_conversation", ["conversationId", "createdAt"])

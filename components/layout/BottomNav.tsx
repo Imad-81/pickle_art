@@ -4,11 +4,18 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/providers/AuthProvider";
-import { Home, Mail, Plus, Compass, User } from "lucide-react";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { Home, Mail, Plus, Compass, User, MessageSquare } from "lucide-react";
 
 export function BottomNav() {
   const pathname = usePathname();
   const { user } = useAuth();
+
+  const pendingRequestsCount = useQuery(
+    api.messages.getPendingRequestCount,
+    user ? { userId: user.id } : "skip"
+  );
 
   const isHome = pathname === "/";
   const isMessages = pathname.startsWith("/messages");
@@ -34,12 +41,19 @@ export function BottomNav() {
       {/* 2. Messages & Feedback Notes */}
       <Link
         href="/messages"
-        className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${
+        className={`relative flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${
           isMessages ? "text-[#A3E635]" : "text-[#8A837A] hover:text-[#EDE6DD]"
         }`}
       >
-        <Mail className={`w-5 h-5 ${isMessages ? "stroke-[2.5]" : "stroke-[1.75]"}`} />
-        <span className="text-[10px] font-sans font-medium">Notes & DMs</span>
+        <div className="relative">
+          <MessageSquare className={`w-5 h-5 ${isMessages ? "stroke-[2.5]" : "stroke-[1.75]"}`} />
+          {(pendingRequestsCount ?? 0) > 0 && (
+            <span className="absolute -top-1.5 -right-2 px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-[#E08B3F] text-black">
+              {pendingRequestsCount}
+            </span>
+          )}
+        </div>
+        <span className="text-[10px] font-sans font-medium">Studio DMs</span>
       </Link>
 
       {/* 3. Create Action (+) Button */}

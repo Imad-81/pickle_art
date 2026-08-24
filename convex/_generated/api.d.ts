@@ -12,6 +12,7 @@ import type * as channels from "../channels.js";
 import type * as crits from "../crits.js";
 import type * as follows from "../follows.js";
 import type * as highlights from "../highlights.js";
+import type * as messages from "../messages.js";
 import type * as output from "../output.js";
 import type * as projects from "../projects.js";
 import type * as recommendations from "../recommendations.js";
@@ -31,6 +32,7 @@ declare const fullApi: ApiFromModules<{
   crits: typeof crits;
   follows: typeof follows;
   highlights: typeof highlights;
+  messages: typeof messages;
   output: typeof output;
   projects: typeof projects;
   recommendations: typeof recommendations;

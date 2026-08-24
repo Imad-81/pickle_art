@@ -17,6 +17,7 @@ import {
   UserCheck,
   Award,
   ChevronLeft,
+  MessageSquare,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -101,26 +102,36 @@ export default function ProfilePage() {
           {/* Follow / Edit Profile */}
           <div>
             {!isMe ? (
-              <button
-                onClick={handleToggleFollow}
-                className={`px-6 py-2.5 rounded-xl text-xs font-semibold font-mono flex items-center gap-2 transition-all shadow-md ${
-                  isFollowing
-                    ? "bg-[#241F1B] text-[#8A837A] border border-[#3E3832]"
-                    : "bg-[#A3E635] text-[#171512] hover:bg-[#65A30D]"
-                }`}
-              >
-                {isFollowing ? (
-                  <>
-                    <UserCheck className="w-4 h-4 text-green-400" />
-                    <span>Following</span>
-                  </>
-                ) : (
-                  <>
-                    <UserPlus className="w-4 h-4" />
-                    <span>Follow Creator</span>
-                  </>
-                )}
-              </button>
+              <div className="flex items-center gap-2.5">
+                <Link
+                  href={`/messages?user=${profileUser._id}`}
+                  className="px-4 py-2.5 rounded-xl bg-[#241F1B] hover:bg-[#2D2722] border border-[#3E3832] hover:border-[#A3E635] text-xs font-semibold font-mono text-[#EDE6DD] flex items-center gap-2 transition-all shadow-md"
+                >
+                  <MessageSquare className="w-4 h-4 text-[#A3E635]" />
+                  <span>Message</span>
+                </Link>
+
+                <button
+                  onClick={handleToggleFollow}
+                  className={`px-5 py-2.5 rounded-xl text-xs font-semibold font-mono flex items-center gap-2 transition-all shadow-md ${
+                    isFollowing
+                      ? "bg-[#241F1B] text-[#8A837A] border border-[#3E3832]"
+                      : "bg-[#A3E635] text-[#171512] hover:bg-[#65A30D]"
+                  }`}
+                >
+                  {isFollowing ? (
+                    <>
+                      <UserCheck className="w-4 h-4 text-green-400" />
+                      <span>Following</span>
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="w-4 h-4" />
+                      <span>Follow Creator</span>
+                    </>
+                  )}
+                </button>
+              </div>
             ) : (
               <Link
                 href="/project/create"

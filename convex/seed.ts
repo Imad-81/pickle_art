@@ -509,6 +509,175 @@ export const seedDatabase = mutation({
       }
     }
 
+    // 6. Seed Sample Direct Messages & Instagram-Style DM Requests
+    const existingConvs = await ctx.db.query("conversations").collect();
+    if (existingConvs.length === 0 && userMap["aarohisen"] && userMap["devp"] && userMap["aaravs"]) {
+      // 6.1 Accepted DM Conversation: Aarohi <-> Dev Patel
+      const [u1, u2] = [userMap["aarohisen"], userMap["devp"]].sort();
+      const conv1Id = await ctx.db.insert("conversations", {
+        user1Id: u1,
+        user2Id: u2,
+        participantIds: [userMap["aarohisen"], userMap["devp"]],
+        initiatorId: userMap["devp"],
+        recipientId: userMap["aarohisen"],
+        status: "accepted",
+        lastMessageText: "I tried scoring at 70% depth on the 400gsm kraft paper. It folds like butter!",
+        lastMessageAt: now - 35 * 60 * 1000,
+        lastSenderId: userMap["devp"],
+        createdAt: now - 2 * 24 * 60 * 60 * 1000,
+        updatedAt: now - 35 * 60 * 1000,
+      });
+
+      await ctx.db.insert("messages", {
+        conversationId: conv1Id,
+        senderId: userMap["aarohisen"],
+        senderName: "Aarohi Sen",
+        senderAvatar: users[0].avatarUrl,
+        receiverId: userMap["devp"],
+        text: "Hey Dev! Loved your dieline latch experiment in the packaging room. How is the crease holding up?",
+        attachments: [],
+        isRead: true,
+        createdAt: now - 2 * 60 * 60 * 1000,
+      });
+
+      await ctx.db.insert("messages", {
+        conversationId: conv1Id,
+        senderId: userMap["devp"],
+        senderName: "Dev Patel",
+        senderAvatar: users[1].avatarUrl,
+        receiverId: userMap["aarohisen"],
+        text: "I tried scoring at 70% depth on the 400gsm kraft paper. It folds like butter!",
+        attachments: [],
+        isRead: false,
+        createdAt: now - 35 * 60 * 1000,
+      });
+
+      // 6.2 Pending DM Request: Aarav S. -> Aarohi Sen (Instagram Request flow)
+      const [uReq1, uReq2] = [userMap["aaravs"], userMap["aarohisen"]].sort();
+      const convReqId = await ctx.db.insert("conversations", {
+        user1Id: uReq1,
+        user2Id: uReq2,
+        participantIds: [userMap["aaravs"], userMap["aarohisen"]],
+        initiatorId: userMap["aaravs"],
+        recipientId: userMap["aarohisen"],
+        status: "pending", // Pending request!
+        lastMessageText: "Hey Aarohi! Would love your thoughts on timber joint ergonomics for our low-poly stool project.",
+        lastMessageAt: now - 15 * 60 * 1000,
+        lastSenderId: userMap["aaravs"],
+        createdAt: now - 15 * 60 * 1000,
+        updatedAt: now - 15 * 60 * 1000,
+      });
+
+      await ctx.db.insert("messages", {
+        conversationId: convReqId,
+        senderId: userMap["aaravs"],
+        senderName: "Aarav S.",
+        senderAvatar: users[3].avatarUrl,
+        receiverId: userMap["aarohisen"],
+        text: "Hey Aarohi! Would love your thoughts on timber joint ergonomics for our low-poly stool project. We're testing a mortise-and-tenon variation with zero metal fasteners.",
+        attachments: [],
+        isRead: false,
+        createdAt: now - 15 * 60 * 1000,
+      });
+    }
+
     return { success: true, message: "Database seeded successfully with rich creators, highlights, projects, moodboards, and crits!" };
+  },
+});
+
+export const seedDMConversations = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const users = await ctx.db.query("users").collect();
+    const userMap: Record<string, string> = {};
+    for (const u of users) {
+      userMap[u.username] = u._id;
+    }
+
+    if (!userMap["aarohisen"] || !userMap["devp"]) {
+      return { success: false, message: "Required users not found" };
+    }
+
+    const now = Date.now();
+    const existingConvs = await ctx.db.query("conversations").collect();
+    if (existingConvs.length === 0) {
+      // 1. Accepted DM: Aarohi <-> Dev Patel
+      const [u1, u2] = [userMap["aarohisen"], userMap["devp"]].sort();
+      const conv1Id = await ctx.db.insert("conversations", {
+        user1Id: u1,
+        user2Id: u2,
+        participantIds: [userMap["aarohisen"], userMap["devp"]],
+        initiatorId: userMap["devp"],
+        recipientId: userMap["aarohisen"],
+        status: "accepted",
+        lastMessageText: "I tried scoring at 70% depth on the 400gsm kraft paper. It folds like butter!",
+        lastMessageAt: now - 35 * 60 * 1000,
+        lastSenderId: userMap["devp"],
+        createdAt: now - 2 * 24 * 60 * 60 * 1000,
+        updatedAt: now - 35 * 60 * 1000,
+      });
+
+      const aarohi = users.find((u) => u.username === "aarohisen")!;
+      const dev = users.find((u) => u.username === "devp")!;
+
+      await ctx.db.insert("messages", {
+        conversationId: conv1Id,
+        senderId: userMap["aarohisen"],
+        senderName: aarohi.name,
+        senderAvatar: aarohi.avatarUrl,
+        receiverId: userMap["devp"],
+        text: "Hey Dev! Loved your dieline latch experiment in the packaging room. How is the crease holding up?",
+        attachments: [],
+        isRead: true,
+        createdAt: now - 2 * 60 * 60 * 1000,
+      });
+
+      await ctx.db.insert("messages", {
+        conversationId: conv1Id,
+        senderId: userMap["devp"],
+        senderName: dev.name,
+        senderAvatar: dev.avatarUrl,
+        receiverId: userMap["aarohisen"],
+        text: "I tried scoring at 70% depth on the 400gsm kraft paper. It folds like butter!",
+        attachments: [],
+        isRead: false,
+        createdAt: now - 35 * 60 * 1000,
+      });
+
+      // 2. Pending Request: Aarav S. -> Aarohi Sen
+      if (userMap["aaravs"]) {
+        const aarav = users.find((u) => u.username === "aaravs")!;
+        const [uReq1, uReq2] = [userMap["aaravs"], userMap["aarohisen"]].sort();
+        const convReqId = await ctx.db.insert("conversations", {
+          user1Id: uReq1,
+          user2Id: uReq2,
+          participantIds: [userMap["aaravs"], userMap["aarohisen"]],
+          initiatorId: userMap["aaravs"],
+          recipientId: userMap["aarohisen"],
+          status: "pending",
+          lastMessageText: "Hey Aarohi! Would love your thoughts on timber joint ergonomics for our low-poly stool project.",
+          lastMessageAt: now - 15 * 60 * 1000,
+          lastSenderId: userMap["aaravs"],
+          createdAt: now - 15 * 60 * 1000,
+          updatedAt: now - 15 * 60 * 1000,
+        });
+
+        await ctx.db.insert("messages", {
+          conversationId: convReqId,
+          senderId: userMap["aaravs"],
+          senderName: aarav.name,
+          senderAvatar: aarav.avatarUrl,
+          receiverId: userMap["aarohisen"],
+          text: "Hey Aarohi! Would love your thoughts on timber joint ergonomics for our low-poly stool project. We're testing a mortise-and-tenon variation with zero metal fasteners.",
+          attachments: [],
+          isRead: false,
+          createdAt: now - 15 * 60 * 1000,
+        });
+      }
+
+      return { success: true, message: "Sample conversations seeded" };
+    }
+
+    return { success: true, message: "Conversations already exist" };
   },
 });
