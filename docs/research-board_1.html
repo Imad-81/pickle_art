@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Research Board — Designing for Process, Not Just Polish</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Sora:wght@400;500;600&family=Kalam:wght@400;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --canvas:#EAEAEE;
+    --dot:#D2D3D9;
+    --frame:#FFFFFF;
+    --frame-border:#E3E3E9;
+    --ink:#17181C;
+    --muted:#6B6C76;
+    --accent:#4C6FFF;
+    --accent-soft:#ECF0FF;
+
+    --yellow:#FFE066;   --yellow-ink:#4A3B00;
+    --pink:#FFB4C6;     --pink-ink:#5C0A24;
+    --blue:#A9D8FF;     --blue-ink:#073763;
+    --green:#B9F6CA;    --green-ink:#0B4620;
+    --purple:#E3C9FF;   --purple-ink:#3B0764;
+    --orange:#FFD0A1;   --orange-ink:#5C2E00;
+    --red:#FFACAC;      --red-ink:#5C0000;
+    --mint:#A9F0D1;     --mint-ink:#063C2C;
+    --teal:#9FE8E0;     --teal-ink:#023B36;
+    --gray:#DCDDE3;     --gray-ink:#2B2C33;
+  }
+
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--canvas);
+    color:var(--ink);
+    font-family:'Sora',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ---------- toolbar ---------- */
+  .toolbar{
+    position:sticky; top:0; z-index:50;
+    height:52px;
+    background:#1E1F24;
+    color:#fff;
+    display:flex; align-items:center;
+    padding:0 16px;
+    gap:14px;
+    font-family:'Space Grotesk',sans-serif;
+    font-size:13px;
+  }
+  .toolbar .dot-group{display:flex; gap:6px;}
+  .toolbar .dot-group span{width:9px;height:9px;border-radius:50%;display:inline-block;}
+  .toolbar .dot-group span:nth-child(1){background:#FF6B6B;}
+  .toolbar .dot-group span:nth-child(2){background:#FFD166;}
+  .toolbar .dot-group span:nth-child(3){background:#8CE99A;}
+  .toolbar .filename{opacity:.55; font-weight:500;}
+  .toolbar .filename b{color:#fff; opacity:1; font-weight:600;}
+  .toolbar .spacer{flex:1;}
+  .toolbar .share{
+    background:var(--accent); color:#fff; border-radius:6px;
+    padding:6px 14px; font-weight:600; font-size:12.5px;
+  }
+  .toolbar .zoom{opacity:.5; font-family:'IBM Plex Mono',monospace; font-size:12px;}
+
+  /* ---------- app shell ---------- */
+  .app{display:flex;}
+
+  .rail{
+    position:sticky; top:52px;
+    align-self:flex-start;
+    width:196px;
+    height:calc(100vh - 52px);
+    background:#FCFCFD;
+    border-right:1px solid var(--frame-border);
+    padding:18px 12px;
+    font-family:'Space Grotesk',sans-serif;
+  }
+  .rail-label{
+    font-size:10.5px; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--muted); margin:4px 8px 10px;
+  }
+  .rail a{
+    display:flex; align-items:center; gap:9px;
+    text-decoration:none; color:var(--ink);
+    font-size:13.5px; font-weight:500;
+    padding:8px 8px; border-radius:7px;
+    margin-bottom:2px;
+  }
+  .rail a:hover{background:var(--accent-soft); color:var(--accent);}
+  .rail a .swatch{width:9px;height:9px;border-radius:2px; flex-shrink:0;}
+  .rail .legend{margin-top:26px; padding-top:16px; border-top:1px solid var(--frame-border);}
+  .rail .legend-item{display:flex; align-items:center; gap:8px; font-size:11.5px; color:var(--muted); margin-bottom:7px; font-family:'IBM Plex Mono',monospace;}
+  .rail .legend-item .swatch{width:10px;height:10px;border-radius:3px;}
+
+  .canvas{
+    flex:1;
+    background-image: radial-gradient(var(--dot) 1.2px, transparent 1.2px);
+    background-size: 22px 22px;
+    padding:48px 4vw 120px;
+    min-width:0;
+  }
+
+  .frame-wrap{margin-bottom:88px; position:relative;}
+  .frame-tag{
+    display:inline-flex; align-items:center; gap:7px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px; color:#5B5D66;
+    background:#F3F3F6; border:1px solid var(--frame-border);
+    padding:4px 10px 4px 8px; border-radius:6px 6px 0 0;
+    margin-bottom:0;
+  }
+  .frame-tag svg{display:block;}
+  .frame{
+    background:var(--frame);
+    border:1px solid var(--frame-border);
+    border-radius:2px 14px 14px 14px;
+    box-shadow:0 1px 2px rgba(20,20,30,.04), 0 18px 40px -20px rgba(20,20,30,.18);
+    padding:44px clamp(18px,4vw,56px);
+  }
+
+  .frame h2{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:clamp(22px,3vw,30px);
+    margin:0 0 6px;
+    font-weight:600;
+  }
+  .frame .frame-sub{
+    color:var(--muted); font-size:14px; max-width:640px; margin:0 0 30px; line-height:1.55;
+  }
+
+  /* ---------- cursor chip (signature detail) ---------- */
+  .cursor-chip{
+    position:absolute; top:-14px; right:26px;
+    display:flex; align-items:center; gap:6px;
+    background:var(--accent); color:#fff;
+    font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:12px;
+    padding:5px 10px 5px 7px; border-radius:5px 12px 12px 12px;
+    transform:rotate(-2deg);
+    box-shadow:0 6px 16px -6px rgba(76,111,255,.6);
+  }
+
+  /* ---------- sticky notes ---------- */
+  .notes{display:flex; flex-wrap:wrap; gap:10px; align-content:flex-start;}
+  .sticky{
+    font-family:'Kalam',cursive;
+    font-size:14px; line-height:1.32;
+    padding:12px 13px;
+    border-radius:3px;
+    width:168px;
+    min-height:78px;
+    box-shadow:0 6px 14px -8px rgba(20,20,30,.35);
+    position:relative;
+  }
+  .sticky.small{width:150px; min-height:64px; font-size:13.3px;}
+  .r0{transform:rotate(-1.6deg);} .r1{transform:rotate(1.1deg);}
+  .r2{transform:rotate(-.6deg);} .r3{transform:rotate(1.8deg);}
+  .r4{transform:rotate(-2.2deg);} .r5{transform:rotate(.4deg);}
+
+  .sticky--yellow{background:var(--yellow); color:var(--yellow-ink);}
+  .sticky--pink{background:var(--pink); color:var(--pink-ink);}
+  .sticky--blue{background:var(--blue); color:var(--blue-ink);}
+  .sticky--green{background:var(--green); color:var(--green-ink);}
+  .sticky--purple{background:var(--purple); color:var(--purple-ink);}
+  .sticky--orange{background:var(--orange); color:var(--orange-ink);}
+  .sticky--red{background:var(--red); color:var(--red-ink);}
+  .sticky--mint{background:var(--mint); color:var(--mint-ink);}
+  .sticky--teal{background:var(--teal); color:var(--teal-ink);}
+  .sticky--gray{background:var(--gray); color:var(--gray-ink);}
+
+  /* ---------- empathy map ---------- */
+  .quad-head{
+    font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:12.5px;
+    letter-spacing:.06em;
+    padding:5px 10px; border-radius:5px;
+    display:inline-block; margin-bottom:12px;
+  }
+  .quad{
+    border:1.5px dashed #E4E4EA; border-radius:12px;
+    padding:20px; margin-bottom:18px;
+  }
+  .quad-grid{display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:18px;}
+  .pg-grid{display:grid; grid-template-columns:1fr 1fr; gap:18px;}
+  .quad.says .quad-head{background:var(--yellow); color:var(--yellow-ink);}
+  .quad.thinks .quad-head{background:var(--blue); color:var(--blue-ink);}
+  .quad.does .quad-head{background:var(--green); color:var(--green-ink);}
+  .quad.feels .quad-head{background:var(--pink); color:var(--pink-ink);}
+  .quad.pains .quad-head{background:var(--red); color:var(--red-ink);}
+  .quad.gains .quad-head{background:var(--mint); color:var(--mint-ink);}
+
+  .persona-strip{
+    display:flex; align-items:center; gap:14px;
+    background:#F7F7F9; border:1px solid var(--frame-border);
+    border-radius:12px; padding:14px 18px; margin-bottom:26px;
+  }
+  .persona-avatar{
+    width:46px;height:46px;border-radius:50%;
+    background:linear-gradient(135deg,var(--accent),#8AA0FF);
+    flex-shrink:0;
+  }
+  .persona-strip .p-name{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:14.5px;}
+  .persona-strip .p-desc{font-size:12.8px; color:var(--muted); margin-top:2px;}
+
+  /* ---------- affinity map ---------- */
+  .cluster{margin-bottom:36px;}
+  .cluster-head{
+    display:flex; align-items:baseline; gap:10px; margin-bottom:4px; flex-wrap:wrap;
+  }
+  .cluster-dot{width:13px;height:13px;border-radius:4px; flex-shrink:0; align-self:center;}
+  .cluster-title{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:17px;}
+  .cluster-count{
+    font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--muted);
+    background:#F3F3F6; padding:2px 8px; border-radius:20px;
+  }
+  .cluster-source{
+    font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--muted);
+    margin:0 0 16px 23px;
+  }
+  .insights{display:flex; flex-wrap:wrap; gap:14px;}
+  .insight-card{
+    flex:1 1 320px; max-width:420px;
+    background:#FCFCFD; border:1px solid var(--frame-border);
+    border-left:5px solid; border-radius:4px 10px 10px 4px;
+    padding:16px 18px;
+  }
+  .insight-card .i-num{
+    font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--muted);
+    margin-bottom:6px; display:block;
+  }
+  .insight-card p{
+    margin:0; font-family:'Sora',sans-serif; font-size:14px; line-height:1.6; color:var(--ink);
+  }
+
+  /* ---------- research frame ---------- */
+  .stat-strip{
+    display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:34px;
+  }
+  .stat-card{
+    background:#F7F7F9; border:1px solid var(--frame-border); border-radius:12px;
+    padding:18px 16px;
+  }
+  .stat-num{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:30px; color:var(--accent);}
+  .stat-label{font-size:12px; color:var(--muted); margin-top:4px; line-height:1.4;}
+
+  .stream-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:32px;}
+  .stream-card{
+    border:1px solid var(--frame-border); border-radius:12px; padding:18px;
+    border-top:4px solid var(--accent);
+  }
+  .stream-card .s-num{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--muted);}
+  .stream-card h4{font-family:'Space Grotesk',sans-serif; margin:6px 0 8px; font-size:15px;}
+  .stream-card p{font-size:12.8px; color:#4A4B54; line-height:1.55; margin:0;}
+
+  .gap-callout{
+    background:#12131A; color:#F4F4F7;
+    border-radius:14px; padding:26px 30px; margin:8px 0 34px;
+  }
+  .gap-callout .g-label{
+    font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.1em;
+    text-transform:uppercase; color:#8AA0FF; margin-bottom:10px;
+  }
+  .gap-callout p{font-family:'Space Grotesk',sans-serif; font-size:16.5px; line-height:1.55; margin:0; font-weight:500;}
+
+  .blueprint{width:100%; border-collapse:collapse; margin-bottom:34px; font-size:12.6px;}
+  .blueprint th{
+    text-align:left; font-family:'Space Grotesk',sans-serif; font-size:11px;
+    text-transform:uppercase; letter-spacing:.05em; color:var(--muted);
+    padding:8px 12px; border-bottom:2px solid var(--frame-border);
+  }
+  .blueprint td{padding:12px; border-bottom:1px solid var(--frame-border); vertical-align:top; line-height:1.5;}
+  .blueprint tr:last-child td{border-bottom:none;}
+  .blueprint td.principle{color:var(--accent); font-weight:600;}
+  .blueprint td.feature{font-weight:600;}
+
+  .pillar-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:14px;}
+  .pillar{border-radius:12px; padding:18px; color:#fff;}
+  .pillar h4{font-family:'Space Grotesk',sans-serif; margin:0 0 10px; font-size:14.5px;}
+  .pillar ul{margin:0; padding-left:16px; font-size:12px; line-height:1.6;}
+  .pillar:nth-child(1){background:#3350D9;}
+  .pillar:nth-child(2){background:#1C8F6B;}
+  .pillar:nth-child(3){background:#B5731C;}
+  .pillar:nth-child(4){background:#6B2FB3;}
+
+  .cover-frame h1{
+    font-family:'Space Grotesk',sans-serif; font-weight:700;
+    font-size:clamp(28px,4.4vw,44px); line-height:1.08; margin:0 0 14px; max-width:820px;
+  }
+  .cover-frame .cover-sub{font-size:14.5px; color:var(--muted); max-width:600px; margin-bottom:26px;}
+  .problem-box{
+    border:1.5px solid var(--accent); background:var(--accent-soft);
+    border-radius:12px; padding:20px 24px; max-width:760px;
+  }
+  .problem-box .pb-label{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--accent); letter-spacing:.08em; margin-bottom:8px;}
+  .problem-box p{margin:0; font-family:'Space Grotesk',sans-serif; font-size:16.5px; line-height:1.55; font-weight:500;}
+  .cover-meta{display:flex; gap:22px; margin-top:28px; flex-wrap:wrap;}
+  .cover-meta div{font-size:12px; font-family:'IBM Plex Mono',monospace; color:var(--muted);}
+  .cover-meta b{display:block; font-family:'Space Grotesk',sans-serif; font-size:19px; color:var(--ink); font-weight:600;}
+
+  /* ---------- mobile ---------- */
+  @media (max-width: 880px){
+    .app{flex-direction:column;}
+    .rail{
+      position:sticky; top:52px; width:100%; height:auto;
+      display:flex; gap:4px; overflow-x:auto;
+      padding:10px 12px; border-right:none; border-bottom:1px solid var(--frame-border);
+    }
+    .rail-label, .rail .legend{display:none;}
+    .rail a{white-space:nowrap; margin-bottom:0;}
+    .canvas{padding:28px 14px 90px;}
+    .frame{padding:28px 16px;}
+    .quad-grid, .pg-grid{grid-template-columns:1fr;}
+    .stat-strip{grid-template-columns:1fr 1fr;}
+    .stream-grid{grid-template-columns:1fr;}
+    .pillar-grid{grid-template-columns:1fr 1fr;}
+    .blueprint{font-size:11.5px;}
+    .cursor-chip{position:static; display:inline-flex; margin-bottom:14px; transform:none;}
+  }
+</style>
+</head>
+<body>
+
+  <div class="toolbar">
+    <div class="dot-group"><span></span><span></span><span></span></div>
+    <div class="filename">Figma File · <b>Designing for Process, Not Just Polish</b></div>
+    <div class="spacer"></div>
+    <div class="zoom">100%</div>
+    <div class="share">Share</div>
+  </div>
+
+  <div class="app">
+    <nav class="rail">
+      <div class="rail-label">Pages</div>
+      <a href="#cover"><span class="swatch" style="background:var(--accent)"></span>Cover</a>
+      <a href="#empathy"><span class="swatch" style="background:var(--yellow)"></span>Empathy Map</a>
+      <a href="#affinity"><span class="swatch" style="background:var(--purple)"></span>Affinity Map</a>
+      <a href="#research"><span class="swatch" style="background:var(--mint)"></span>Research Synthesis</a>
+      <div class="legend">
+        <div class="legend-item"><span class="swatch" style="background:var(--yellow)"></span>Says / Behaviour</div>
+        <div class="legend-item"><span class="swatch" style="background:var(--red)"></span>Pain</div>
+        <div class="legend-item"><span class="swatch" style="background:var(--mint)"></span>Gain / Need</div>
+        <div class="legend-item"><span class="swatch" style="background:var(--accent)"></span>n = 51 survey</div>
+      </div>
+    </nav>
+
+    <main class="canvas">
+
+      <!-- ============ COVER ============ -->
+      <section id="cover" class="frame-wrap">
+        <div class="frame-tag">
+          <svg width="11" height="11" viewBox="0 0 11 11"><rect x="0.5" y="0.5" width="10" height="10" rx="1.5" stroke="#8B8C96" fill="none"/></svg>
+          Frame — Cover
+        </div>
+        <div class="frame cover-frame">
+          <div class="cursor-chip">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="white"><path d="M1 1l6 13 2-5 5-2z"/></svg>
+            Yash
+          </div>
+          <h1>Designing for Process, Not Just Polish</h1>
+          <p class="cover-sub">Research board — five secondary-research streams + a 51-respondent primary survey, laid out as an empathy map, an affinity map, and a research synthesis.</p>
+          <div class="problem-box">
+            <div class="pb-label">PROBLEM STATEMENT</div>
+            <p>How might we design a social platform for creative people that values the depth of their process and skill — not just the polish of their final visuals — while giving them a dedicated space to discover and browse creative work within their own interests, free from unrelated noise?</p>
+          </div>
+          <div class="cover-meta">
+            <div><b>51</b>survey respondents</div>
+            <div><b>87</b>open-ended responses</div>
+            <div><b>5</b>secondary research streams</div>
+            <div><b>1</b>market gap identified</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ EMPATHY MAP ============ -->
+      <section id="empathy" class="frame-wrap">
+        <div class="frame-tag">
+          <svg width="11" height="11" viewBox="0 0 11 11"><rect x="0.5" y="0.5" width="10" height="10" rx="1.5" stroke="#8B8C96" fill="none"/></svg>
+          Frame — Empathy Map
+        </div>
+        <div class="frame">
+          <h2>Empathy Map</h2>
+          <p class="frame-sub">The creative practitioner behind the survey — built from the 51-respondent primary research and the documented pain points in the secondary research.</p>
+
+          <div class="persona-strip">
+            <div class="persona-avatar"></div>
+            <div>
+              <div class="p-name">The Quiet Creator</div>
+              <div class="p-desc">Makes work consistently, shares it rarely. Wants to be understood, not scored.</div>
+            </div>
+          </div>
+
+          <div class="quad-grid">
+            <div class="quad says"><div class="quad-head">SAYS</div><div class="notes" id="notes-says"></div></div>
+            <div class="quad thinks"><div class="quad-head">THINKS</div><div class="notes" id="notes-thinks"></div></div>
+            <div class="quad does"><div class="quad-head">DOES</div><div class="notes" id="notes-does"></div></div>
+            <div class="quad feels"><div class="quad-head">FEELS</div><div class="notes" id="notes-feels"></div></div>
+          </div>
+          <div class="pg-grid">
+            <div class="quad pains"><div class="quad-head">PAINS</div><div class="notes" id="notes-pains"></div></div>
+            <div class="quad gains"><div class="quad-head">GAINS</div><div class="notes" id="notes-gains"></div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ AFFINITY MAP ============ -->
+      <section id="affinity" class="frame-wrap">
+        <div class="frame-tag">
+          <svg width="11" height="11" viewBox="0 0 11 11"><rect x="0.5" y="0.5" width="10" height="10" rx="1.5" stroke="#8B8C96" fill="none"/></svg>
+          Frame — Affinity Map
+        </div>
+        <div class="frame">
+          <h2>Affinity Map</h2>
+          <p class="frame-sub">The original eight raw-note themes, merged into four core insight groups — each boiled down to its clearest 1–2 takeaways.</p>
+          <div id="clusters"></div>
+        </div>
+      </section>
+
+      <!-- ============ RESEARCH SYNTHESIS ============ -->
+      <section id="research" class="frame-wrap">
+        <div class="frame-tag">
+          <svg width="11" height="11" viewBox="0 0 11 11"><rect x="0.5" y="0.5" width="10" height="10" rx="1.5" stroke="#8B8C96" fill="none"/></svg>
+          Frame — Research Synthesis
+        </div>
+        <div class="frame">
+          <h2>Research Synthesis</h2>
+          <p class="frame-sub">Six independent research streams, one recurring gap.</p>
+
+          <div class="stat-strip">
+            <div class="stat-card"><div class="stat-num">39%</div><div class="stat-label">of creators share nothing publicly — 45% more share only rarely</div></div>
+            <div class="stat-card"><div class="stat-num">76%</div><div class="stat-label">have avoided posting for feeling "not finished enough"</div></div>
+            <div class="stat-card"><div class="stat-num">74.5%</div><div class="stat-label">want specific comments explaining why something works — 2% want ratings</div></div>
+            <div class="stat-card"><div class="stat-num">55%</div><div class="stat-label">are motivated by their own progress — only 4% by like/view counts</div></div>
+          </div>
+
+          <div class="stream-grid" id="streams"></div>
+
+          <div class="gap-callout">
+            <div class="g-label">THE MARKET GAP</div>
+            <p>No existing platform combines process-first content, non-engagement-optimized recognition, and niche/interest-based discovery in one product. Are.na owns the first; Behance/Dribbble/ArtStation own the third; nobody owns both.</p>
+          </div>
+
+          <h3 style="font-family:'Space Grotesk',sans-serif; font-size:16px; margin-bottom:14px;">Solution Blueprint — Research → Principle → Feature</h3>
+          <table class="blueprint">
+            <thead><tr><th style="width:36%">Research Insight</th><th style="width:28%">Design Principle</th><th style="width:36%">Feature Idea</th></tr></thead>
+            <tbody id="blueprint-body"></tbody>
+          </table>
+
+          <h3 style="font-family:'Space Grotesk',sans-serif; font-size:16px; margin-bottom:14px;">Feature Pillars</h3>
+          <div class="pillar-grid">
+            <div class="pillar">
+              <h4>Process-First Content</h4>
+              <ul><li>"Build Log" post type: sketch → draft → final</li><li>Own ranking surface, never merged with polish feed</li><li>Stage-pinned critique threads</li></ul>
+            </div>
+            <div class="pillar">
+              <h4>Noise-Free Discovery</h4>
+              <ul><li>Opt-in tags/channels by medium or niche</li><li>No algorithmic virality feed, no ads</li><li>Transparent discovery logic</li></ul>
+            </div>
+            <div class="pillar">
+              <h4>Recognition Beyond Likes</h4>
+              <ul><li>Skill-tagged reactions naming what worked</li><li>Depth-of-engagement ranking over raw views</li><li>Visible growth trail per creator</li></ul>
+            </div>
+            <div class="pillar">
+              <h4>Trust & Craft Integrity</h4>
+              <ul><li>Optional human/AI provenance tagging</li><li>Peer recognition weighted by discipline</li><li>No pay-to-boost mechanics</li></ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+<script>
+  const empathy = {
+    says: [
+      "Make it easier to share unfinished work without feeling pressured to make it perfect.",
+      "A viewing system based on skill, story and experience — not tied to likes.",
+      "My ideal space would feel like a supportive studio, not a competition.",
+      "People who like my type of work should find it regardless of what's trending.",
+      "Show a progress bar for the progress of the work."
+    ],
+    thinks: [
+      "If I post this now, people will judge it as unfinished, not in-progress.",
+      "The algorithm might be working against me and I'd never know.",
+      "A like doesn't really tell me if the work is good.",
+      "Everyone else's feed looks more finished than what I'm making.",
+      "I should format this like what performs, even if it doesn't fit my work."
+    ],
+    does: [
+      "Documents WIP sometimes (47%) or consistently (37%) — rarely posts it",
+      "Shares nothing publicly (39%) or only rarely (45%)",
+      "Seeks feedback from a mentor (41%) or close peers (37%), not strangers",
+      "Checks back on a post's performance repeatedly (82% at least a few times)",
+      "Scrolls others' finished work — it changes how they feel about their own WIP"
+    ],
+    feels: [
+      "Judged for posting anything less than polished",
+      "Anxious comparing WIP to others' highlight reels (75%)",
+      "Mostly \"interesting/valuable\" about old false starts — some embarrassment",
+      "Most motivated by seeing their own progress (55%), not by likes (4%)",
+      "Wants to feel seen, not scored"
+    ],
+    pains: [
+      "Visual-polish bias rewards finish over problem-solving",
+      "Opaque, punishing algorithm — \"shadowbanning\" erodes trust",
+      "Portfolio anxiety / highlight-reel comparison culture",
+      "Process content gets structurally less engagement",
+      "Feed noise crowds out genuine peer work",
+      "Likes run on a slot-machine reward loop, not a craft signal"
+    ],
+    gains: [
+      "A space where \"in-progress\" is normal, not something to hide",
+      "Specific, growth-oriented feedback over ratings",
+      "A visible skill/progress trail instead of a follower count",
+      "Niche, interest-based discovery — no algorithmic guessing",
+      "Recognition that confirms skill, not popularity"
+    ]
+  };
+  const empathyColor = {says:'yellow', thinks:'blue', does:'green', feels:'pink', pains:'red', gains:'mint'};
+  const rot = ['r0','r1','r2','r3','r4','r5'];
+
+  Object.keys(empathy).forEach(key=>{
+    const el = document.getElementById('notes-'+key);
+    empathy[key].forEach((text,i)=>{
+      const d = document.createElement('div');
+      d.className = `sticky sticky--${empathyColor[key]} ${rot[i%rot.length]}`;
+      d.textContent = text;
+      el.appendChild(d);
+    });
+  });
+
+  const clusters = [
+    {
+      title:"Polish Bias & Process Erasure",
+      color:"orange",
+      source:"Merged from: Visual-Polish Bias + Devalued Process Content — 10 raw notes",
+      insights:[
+        "Platforms reward finished gloss over real process at every level — community norms (Dribbble, Behance, ArtStation) and brain-level perception (processing fluency, thin-slicing judges competence in ~100ms) both work against unfinished work.",
+        "Because process content is structurally punished, creators self-censor toward only their most polished work — 76% have avoided posting something for feeling \"not finished enough.\""
+      ]
+    },
+    {
+      title:"Platform & Algorithm Failure",
+      color:"blue",
+      source:"Merged from: Algorithm Distrust + Feed Noise & Lost Discovery — 9 raw notes",
+      insights:[
+        "Distribution is an opaque, high-stakes black box — a post's fate is decided within minutes by an undisclosed test, and 45% of surveyed creators feel the algorithm works against them.",
+        "That opacity forces creators to format work for the algorithm rather than for the work itself (61%), while every past attempt at a quieter or fairer alternative — an ad-free feed, a calmer community space — has been shut down or failed to gain traction."
+      ]
+    },
+    {
+      title:"The Psychology of Comparison & Reward",
+      color:"pink",
+      source:"Merged from: Portfolio Anxiety & Comparison + Reward & Recognition Psychology — 9 raw notes",
+      insights:[
+        "Feeds show only finished highlight reels, hiding the years of struggle behind them — a comparison trap that measurably affects 75% of creators when they view their own work-in-progress.",
+        "Likes run on a slot-machine reward loop disconnected from actual quality; Self-Determination Theory shows real motivation needs autonomy, competence and relatedness — a bare count offers none of these, while a specific comment builds competence."
+      ]
+    },
+    {
+      title:"The Case for Process-First, Validated by Data",
+      color:"yellow",
+      source:"Merged from: Why Process Actually Matters + Primary Research Confirms It — 9 raw notes",
+      insights:[
+        "Across design education, crit culture, and open-source practice, visible process — not the finished output — is where real learning and feedback happen; hide the process and skill itself becomes invisible.",
+        "The 51-respondent primary survey independently confirms all of this: most creators hide their work (84% share nothing or rarely), want explanation over scoring (74.5% vs 2%), and are driven by their own progress over metrics (55% vs 4%) — consistently describing their ideal space as safe, judgment-free, and community-oriented."
+      ]
+    }
+  ];
+
+  const clustersEl = document.getElementById('clusters');
+  clusters.forEach(c=>{
+    const wrap = document.createElement('div');
+    wrap.className = 'cluster';
+    wrap.innerHTML = `<div class="cluster-head">
+        <span class="cluster-dot" style="background:var(--${c.color})"></span>
+        <span class="cluster-title">${c.title}</span>
+        <span class="cluster-count">${c.insights.length} insights</span>
+      </div>
+      <div class="cluster-source">${c.source}</div>`;
+    const insightsEl = document.createElement('div');
+    insightsEl.className = 'insights';
+    c.insights.forEach((text,i)=>{
+      const d = document.createElement('div');
+      d.className = 'insight-card';
+      d.style.borderLeftColor = `var(--${c.color})`;
+      d.innerHTML = `<span class="i-num">INSIGHT ${i+1}</span><p>${text}</p>`;
+      insightsEl.appendChild(d);
+    });
+    wrap.appendChild(insightsEl);
+    clustersEl.appendChild(wrap);
+  });
+
+  const streams = [
+    {n:"01", title:"Competitor Landscape", body:"Behance, Dribbble & ArtStation define quality as finished, hireable output. Only Are.na restructures the unit of the platform around process — but sacrifices niche discovery."},
+    {n:"02", title:"Documented Pain Points", body:"Visual-polish bias, algorithm distrust, portfolio anxiety, devalued process content, and feed noise — drawn from Reddit, app reviews, and design-community forums."},
+    {n:"03", title:"Root Cause", body:"Polish wins for structural (ranking mechanics), perceptual (processing fluency, thin-slicing), and cultural (highlight-reel norm) reasons — all three at once."},
+    {n:"04", title:"Why Process Matters", body:"Design education, crit culture, and open-source culture all treat the unfinished state as the highest-learning part of the work."},
+    {n:"05", title:"Reward Psychology", body:"Likes run on a variable-ratio schedule built for checking behaviour. Self-Determination Theory shows real motivation needs autonomy, competence and relatedness."},
+    {n:"06", title:"Primary Survey (n=51)", body:"51 creators independently echo the secondary research: most don't post, most have hidden work from fear of judgment, and progress beats popularity."}
+  ];
+  const streamsEl = document.getElementById('streams');
+  streams.forEach(s=>{
+    const d = document.createElement('div');
+    d.className = 'stream-card';
+    d.innerHTML = `<div class="s-num">${s.n}</div><h4>${s.title}</h4><p>${s.body}</p>`;
+    streamsEl.appendChild(d);
+  });
+
+  const blueprint = [
+    ["Process content structurally loses on raw visual fluency & thin-slicing", "Don't make process compete against finished polish", "Separate \"Build Log\" surface — own ranking pool"],
+    ["Crit only works on unfinished, low-fidelity work", "Attach feedback directly to in-progress stages", "Stage-pinned critique threads on each WIP update"],
+    ["Likes are a variable-ratio reward that drives checking, not craft", "Replace anonymous vanity counts with information-carrying recognition", "Skill-tagged reactions (\"strong colour decision\") instead of a bare like counter"],
+    ["SDT: autonomy, competence, relatedness drive real motivation", "Design around growth, not popularity", "Visible skill-growth trail instead of a static follower count"],
+    ["Feed noise & irrelevant content crowd out peer work", "Let people opt into interests directly", "Interest/channel-based browsing — no algorithmic virality feed"],
+    ["76% avoided posting for feeling \"not finished enough\"", "Remove the perfection threshold for what counts as postable", "Native \"WIP\" status on any post — no polish bar to clear"],
+    ["74.5% want specific comments explaining why, only 2% want scores", "Default feedback UI toward explanation, not scoring", "Comment prompts: \"what worked / what to try next\""]
+  ];
+  const bpBody = document.getElementById('blueprint-body');
+  blueprint.forEach(row=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${row[0]}</td><td class="principle">${row[1]}</td><td class="feature">${row[2]}</td>`;
+    bpBody.appendChild(tr);
+  });
+</script>
+</body>
+</html>
