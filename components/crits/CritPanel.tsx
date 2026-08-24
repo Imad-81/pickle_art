@@ -8,7 +8,6 @@ import {
   MessageSquare,
   Sparkles,
   Pin,
-  Bookmark,
   Send,
   CheckCircle2,
   Tag,
@@ -47,14 +46,12 @@ export function CritPanel({
   const addCritMutation = useMutation(api.crits.addCrit);
   const togglePinMutation = useMutation(api.crits.togglePinCrit);
   const toggleSkillMutation = useMutation(api.crits.toggleSkillReaction);
-  const saveToNotesMutation = useMutation(api.crits.saveToFeedbackNotes);
 
   const [whatWorked, setWhatWorked] = useState("");
   const [whatToTryNext, setWhatToTryNext] = useState("");
   const [generalComment, setGeneralComment] = useState("");
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [savedCritId, setSavedCritId] = useState<string | null>(null);
 
   const handleToggleSkill = (skill: string) => {
     if (selectedSkills.includes(skill)) {
@@ -99,27 +96,6 @@ export function CritPanel({
     }
   };
 
-  const handleSaveToNotes = async (crit: any) => {
-    if (!user) {
-      openAuthModal();
-      return;
-    }
-
-    await saveToNotesMutation({
-      userId: user.id,
-      critId: crit._id,
-      projectId,
-      projectTitle,
-      authorName: crit.authorName,
-      authorAvatar: crit.authorAvatar,
-      stage: currentStage,
-      whatWorked: crit.whatWorked,
-      whatToTryNext: crit.whatToTryNext,
-    });
-
-    setSavedCritId(crit._id);
-    setTimeout(() => setSavedCritId(null), 3000);
-  };
 
   return (
     <div className="space-y-6 pt-4">
@@ -222,7 +198,6 @@ export function CritPanel({
 
         {crits &&
           crits.map((crit) => {
-            const isSaved = savedCritId === crit._id;
             return (
               <div
                 key={crit._id}
@@ -258,22 +233,6 @@ export function CritPanel({
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {/* Save to personal Feedback Notes */}
-                    <button
-                      onClick={() => handleSaveToNotes(crit)}
-                      title="Save to Personal Feedback Notes Notebook"
-                      className={`p-1.5 rounded-lg border text-xs flex items-center gap-1 transition-all ${
-                        isSaved
-                          ? "bg-green-900/40 border-green-700 text-green-300"
-                          : "bg-[#241F1B] border-[#342D26] text-[#8A837A] hover:text-[#EDE6DD] hover:border-[#A3E635]"
-                      }`}
-                    >
-                      <Bookmark className="w-3.5 h-3.5" />
-                      <span className="text-[10px] hidden sm:inline">
-                        {isSaved ? "Saved!" : "Save Note"}
-                      </span>
-                    </button>
-
                     <button
                       onClick={() => togglePinMutation({ critId: crit._id as any })}
                       className="p-1.5 text-[#7E776F] hover:text-[#A3E635]"

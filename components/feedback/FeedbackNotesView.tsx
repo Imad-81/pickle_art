@@ -34,6 +34,31 @@ export function FeedbackNotesView() {
 
   const updateStatusMutation = useMutation(api.crits.updateFeedbackNoteStatus);
 
+  // Handles status change — upserts a feedbackNote record if one doesn't exist yet
+  const handleStatusChange = (note: any, newStatus: string) => {
+    if (note._isCritOnly) {
+      // No feedbackNote record exists yet — upsert via crit context
+      updateStatusMutation({
+        userId: note.userId,
+        critId: note.critId,
+        projectId: note.projectId,
+        projectTitle: note.projectTitle,
+        authorName: note.authorName,
+        authorAvatar: note.authorAvatar,
+        stage: note.stage,
+        whatWorked: note.whatWorked,
+        whatToTryNext: note.whatToTryNext,
+        actionableStatus: newStatus as any,
+      });
+    } else {
+      // Existing feedbackNote — patch directly
+      updateStatusMutation({
+        noteId: note._id,
+        actionableStatus: newStatus as any,
+      });
+    }
+  };
+
   if (!user) {
     return (
       <div className="p-12 text-center bg-[#1C1A17] border border-[#2E2924] rounded-2xl max-w-md mx-auto my-12 space-y-4">
@@ -153,7 +178,7 @@ export function FeedbackNotesView() {
                 {notes && notes.length === 0 && (
                   <tr>
                     <td colSpan={5} className="py-12 text-center text-[#8A837A]">
-                      No feedback notes in this category. Click "Save Note" on any critique to add it here.
+                      No feedback received yet. Feedback from peers will appear here automatically.
                     </td>
                   </tr>
                 )}
@@ -212,12 +237,7 @@ export function FeedbackNotesView() {
                         <td className="py-4 px-4 align-top text-center">
                           <select
                             value={note.actionableStatus}
-                            onChange={(e) =>
-                              updateStatusMutation({
-                                noteId: note._id,
-                                actionableStatus: e.target.value as any,
-                              })
-                            }
+                            onChange={(e) => handleStatusChange(note, e.target.value)}
                             className={`px-2.5 py-1 rounded-full text-[10px] font-mono border focus:outline-none cursor-pointer ${
                               note.actionableStatus === "todo"
                                 ? "bg-lime-950/50 text-lime-300 border-lime-800"

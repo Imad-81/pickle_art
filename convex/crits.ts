@@ -142,31 +142,119 @@ export const getUserFeedbackNotes = query({
     status: v.optional(v.union(v.literal("todo"), v.literal("addressed"), v.literal("dismissed"))),
   },
   handler: async (ctx, args) => {
-    let q = ctx.db
-      .query("feedbackNotes")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId));
+    // 1. Get all projects owned by this user
+    const userProjects = await ctx.db
+      .query("projects")
+      .withIndex("by_creator", (q) => q.eq("creatorId", args.userId))
+      .collect();
 
-    if (args.status) {
-      q = ctx.db
-        .query("feedbackNotes")
-        .withIndex("by_user_status", (q) =>
-          q.eq("userId", args.userId).eq("actionableStatus", args.status!)
-        );
+    if (userProjects.length === 0) return [];
+
+    // 2. Gather all crits on those projects (excluding crits authored by the user)
+    const allCrits: any[] = [];
+    for (const project of userProjects) {
+      const crits = await ctx.db
+        .query("crits")
+        .withIndex("by_project", (q) => q.eq("projectId", project._id))
+        .collect();
+      for (const crit of crits) {
+        if (crit.authorId !== args.userId) {
+          allCrits.push({ crit, project });
+        }
+      }
     }
-    return await q.order("desc").collect();
+
+    // 3. Load existing feedbackNotes to get saved statuses
+    const savedNotes = await ctx.db
+      .query("feedbackNotes")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .collect();
+    const savedByCritId = new Map(savedNotes.map((n) => [n.critId, n]));
+
+    // 4. Merge: every crit becomes a feedback note entry
+    const merged = allCrits.map(({ crit, project }) => {
+      const saved = savedByCritId.get(crit._id);
+      return {
+        _id: saved?._id ?? crit._id, // use feedbackNote _id if exists (for status mutations)
+        _isCritOnly: !saved, // flag: no saved note record yet
+        critId: crit._id,
+        userId: args.userId,
+        projectId: project._id,
+        projectTitle: project.title,
+        authorName: crit.authorName,
+        authorAvatar: crit.authorAvatar,
+        stage: crit.targetStage,
+        whatWorked: crit.whatWorked,
+        whatToTryNext: crit.whatToTryNext,
+        personalNote: saved?.personalNote,
+        actionableStatus: saved?.actionableStatus ?? "todo",
+        createdAt: crit.createdAt,
+      };
+    });
+
+    // 5. Filter by status if requested
+    const filtered = args.status
+      ? merged.filter((n) => n.actionableStatus === args.status)
+      : merged;
+
+    // 6. Sort newest first
+    return filtered.sort((a, b) => b.createdAt - a.createdAt);
   },
 });
 
 export const updateFeedbackNoteStatus = mutation({
   args: {
-    noteId: v.id("feedbackNotes"),
+    // Pass noteId when the feedbackNote record already exists
+    noteId: v.optional(v.id("feedbackNotes")),
+    // Pass these when creating a new feedbackNote record from a raw crit
+    userId: v.optional(v.string()),
+    critId: v.optional(v.string()),
+    projectId: v.optional(v.string()),
+    projectTitle: v.optional(v.string()),
+    authorName: v.optional(v.string()),
+    authorAvatar: v.optional(v.string()),
+    stage: v.optional(v.string()),
+    whatWorked: v.optional(v.string()),
+    whatToTryNext: v.optional(v.string()),
     actionableStatus: v.optional(
       v.union(v.literal("todo"), v.literal("addressed"), v.literal("dismissed"))
     ),
     personalNote: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { noteId, ...updates } = args;
-    await ctx.db.patch(noteId, updates);
+    if (args.noteId) {
+      // Update existing feedbackNote
+      const { noteId, userId, critId, projectId, projectTitle, authorName, authorAvatar, stage, whatWorked, whatToTryNext, ...updates } = args;
+      await ctx.db.patch(noteId, updates);
+    } else {
+      // Upsert: create a feedbackNote from the raw crit data, then update
+      if (!args.userId || !args.critId) return;
+      const existing = await ctx.db
+        .query("feedbackNotes")
+        .withIndex("by_user", (q) => q.eq("userId", args.userId!))
+        .filter((q) => q.eq(q.field("critId"), args.critId!))
+        .first();
+      if (existing) {
+        await ctx.db.patch(existing._id, {
+          actionableStatus: args.actionableStatus,
+          personalNote: args.personalNote,
+        });
+      } else {
+        await ctx.db.insert("feedbackNotes", {
+          userId: args.userId!,
+          critId: args.critId!,
+          projectId: args.projectId ?? "",
+          projectTitle: args.projectTitle ?? "",
+          authorName: args.authorName ?? "",
+          authorAvatar: args.authorAvatar ?? "",
+          stage: args.stage ?? "",
+          whatWorked: args.whatWorked ?? "",
+          whatToTryNext: args.whatToTryNext ?? "",
+          personalNote: args.personalNote,
+          actionableStatus: args.actionableStatus ?? "todo",
+          createdAt: Date.now(),
+        });
+      }
+    }
   },
 });
