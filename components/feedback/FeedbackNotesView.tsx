@@ -126,7 +126,7 @@ export function FeedbackNotesView() {
               : "bg-[#1C1A17] text-[#8A837A] border-[#2E2924] hover:text-[#EDE6DD]"
           }`}
         >
-          All Saved Notes ({notes?.length || 0})
+          All notes ({notes?.length || 0})
         </button>
         <button
           onClick={() => setFilterStatus("todo")}
@@ -136,7 +136,7 @@ export function FeedbackNotesView() {
               : "bg-[#1C1A17] text-[#8A837A] border-[#2E2924] hover:text-[#EDE6DD]"
           }`}
         >
-          To Action (Todo)
+          Todo
         </button>
         <button
           onClick={() => setFilterStatus("addressed")}
@@ -146,7 +146,7 @@ export function FeedbackNotesView() {
               : "bg-[#1C1A17] text-[#8A837A] border-[#2E2924] hover:text-[#EDE6DD]"
           }`}
         >
-          Addressed / Iterated
+          Addressed
         </button>
         <button
           onClick={() => setFilterStatus("dismissed")}
