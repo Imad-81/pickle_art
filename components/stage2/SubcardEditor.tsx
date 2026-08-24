@@ -23,10 +23,12 @@ export function SubcardEditor({
   projectId,
   isEditable = true,
   onNavigateToOutput,
+  onSwitchToBoard,
 }: {
   projectId: string;
   isEditable?: boolean;
   onNavigateToOutput?: () => void;
+  onSwitchToBoard?: () => void;
 }) {
   const { user } = useAuth();
   const subcards = useQuery(api.stage2.getSubcardsByProject, { projectId });
@@ -139,6 +141,14 @@ export function SubcardEditor({
         </div>
 
         <div className="flex items-center gap-3">
+          {onSwitchToBoard && (
+            <button
+              onClick={onSwitchToBoard}
+              className="flex items-center gap-1.5 px-3 py-2 bg-[#241F1B] hover:bg-[#2F2923] border border-[#3E3832] text-xs font-mono text-[#EDE6DD] rounded-xl transition-colors"
+            >
+              <span>Stitch Board 🎨</span>
+            </button>
+          )}
           {isEditable && (
             <button
               onClick={() => setIsAddingSubcard(true)}

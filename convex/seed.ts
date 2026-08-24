@@ -439,7 +439,88 @@ export const seedDatabase = mutation({
         });
       }
 
-      // 5.2 Stage 2 Sub-cards (Experiments & Polls)
+      // 5.2 Stage 2 Stitch Board Items (Spatial Development Canvas)
+      const stage2CanvasItems = [
+        {
+          type: "frame",
+          title: "Score Depth & Latch Tolerances",
+          x: 40,
+          y: 40,
+          width: 620,
+          height: 480,
+          zIndex: 1,
+          content: "Frame: Prototype Iterations & Variant Tests",
+        },
+        {
+          type: "image",
+          title: "Score Line Crease Test",
+          x: 70,
+          y: 90,
+          width: 270,
+          height: 190,
+          rotation: -1,
+          zIndex: 3,
+          content: "https://images.unsplash.com/photo-1589939705384-5185137a7f0f?q=80&w=800&auto=format&fit=crop",
+          metadata: { caption: "Laser-cut 350gsm kraft paper folding tests" },
+        },
+        {
+          type: "image",
+          title: "Friction Dovetail vs Curved Tongue",
+          x: 360,
+          y: 90,
+          width: 260,
+          height: 190,
+          rotation: 1.5,
+          zIndex: 4,
+          content: "https://images.unsplash.com/photo-1513519245088-0e12902e5a38?q=80&w=800&auto=format&fit=crop",
+          metadata: { caption: "Assembly stress test after 50 open/close cycles" },
+        },
+        {
+          type: "text_sticky",
+          title: "Tolerance Spec",
+          x: 70,
+          y: 300,
+          width: 230,
+          height: 170,
+          rotation: -1.5,
+          zIndex: 6,
+          color: "#FFE066",
+          content: "• 0.4mm kerf allowance on laser score line\n• 350gsm unbleached virgin kraft stock\n• Grain direction MUST run parallel to hinge fold",
+        },
+        {
+          type: "text_sticky",
+          title: "Feedback Action Item",
+          x: 330,
+          y: 300,
+          width: 220,
+          height: 150,
+          rotation: 2,
+          zIndex: 7,
+          color: "#A9D8FF",
+          content: "Add 1.5mm finger deboss notch to simplify lid opening gesture without tearing edge.",
+        },
+      ];
+
+      for (const item of stage2CanvasItems) {
+        await ctx.db.insert("stage2Items", {
+          projectId,
+          type: item.type as any,
+          title: item.title,
+          x: item.x,
+          y: item.y,
+          width: item.width,
+          height: item.height,
+          rotation: item.rotation || 0,
+          zIndex: item.zIndex,
+          color: item.color,
+          content: item.content,
+          metadata: item.metadata,
+          createdAt: now - 9 * 24 * 60 * 60 * 1000,
+          updatedAt: now - 9 * 24 * 60 * 60 * 1000,
+        });
+      }
+
+      // 5.3 Stage 2 Sub-cards (Experiments & Polls)
       const subcardId1 = await ctx.db.insert("stage2Subcards", {
         projectId,
         title: "Experiment 01 — Dieline Tab Geometry",

@@ -54,18 +54,53 @@ interface ResizingState {
 
 export function StitchCanvas({
   projectId,
+  stage = "stage1",
   isEditable = true,
   onNavigateToStage2,
+  onNavigateToOutput,
+  onNavigateNext,
+  nextLabel,
+  onSwitchToPosts,
 }: {
   projectId: string;
+  stage?: "stage1" | "stage2";
   isEditable?: boolean;
   onNavigateToStage2?: () => void;
+  onNavigateToOutput?: () => void;
+  onNavigateNext?: () => void;
+  nextLabel?: string;
+  onSwitchToPosts?: () => void;
 }) {
-  const items = useQuery(api.stage1.getItemsByProject, { projectId });
-  const addItemMutation = useMutation(api.stage1.addItem);
-  const updateTransformMutation = useMutation(api.stage1.updateItemTransform);
-  const updateContentMutation = useMutation(api.stage1.updateItemContent);
-  const deleteItemMutation = useMutation(api.stage1.deleteItem);
+  const stage1Items = useQuery(
+    api.stage1.getItemsByProject,
+    stage === "stage1" ? { projectId } : "skip"
+  );
+  const stage2Items = useQuery(
+    api.stage2.getCanvasItemsByProject,
+    stage === "stage2" ? { projectId } : "skip"
+  );
+  const items = stage === "stage2" ? stage2Items : stage1Items;
+
+  const addStage1Item = useMutation(api.stage1.addItem);
+  const addStage2Item = useMutation(api.stage2.addCanvasItem);
+
+  const updateStage1Transform = useMutation(api.stage1.updateItemTransform);
+  const updateStage2Transform = useMutation(api.stage2.updateCanvasItemTransform);
+
+  const updateStage1Content = useMutation(api.stage1.updateItemContent);
+  const updateStage2Content = useMutation(api.stage2.updateCanvasItemContent);
+
+  const deleteStage1Item = useMutation(api.stage1.deleteItem);
+  const deleteStage2Item = useMutation(api.stage2.deleteCanvasItem);
+
+  const addItemMutation = (args: any) =>
+    stage === "stage2" ? addStage2Item(args) : addStage1Item(args);
+  const updateTransformMutation = (args: any) =>
+    stage === "stage2" ? updateStage2Transform(args) : updateStage1Transform(args);
+  const updateContentMutation = (args: any) =>
+    stage === "stage2" ? updateStage2Content(args) : updateStage1Content(args);
+  const deleteItemMutation = (args: any) =>
+    stage === "stage2" ? deleteStage2Item(args) : deleteStage1Item(args);
 
   // Canvas Transform state
   const [transform, setTransform] = useState({ x: 120, y: 80, scale: 0.95 });
@@ -285,8 +320,11 @@ export function StitchCanvas({
       rotation: Math.round((Math.random() * 4 - 2) * 10) / 10,
       zIndex: 10,
       color: colorObj.bg,
-      content: "Write research insight or thought here...",
-      title: "Process Note",
+      content:
+        stage === "stage2"
+          ? "Write iteration note, material test log, or CAD dimension spec..."
+          : "Write research insight or thought here...",
+      title: stage === "stage2" ? "Dev Note" : "Process Note",
     });
   };
 
@@ -301,8 +339,11 @@ export function StitchCanvas({
       width: 540,
       height: 380,
       zIndex: 1,
-      content: "Frame: Mood & Material Exploration",
-      title: "Frame 01",
+      content:
+        stage === "stage2"
+          ? "Frame: Prototypes & Variant Tests"
+          : "Frame: Mood & Material Exploration",
+      title: stage === "stage2" ? "Dev Frame 01" : "Frame 01",
     });
   };
 
@@ -320,7 +361,7 @@ export function StitchCanvas({
       setIsUploading(true);
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const res = await uploadMedia(file, { folder: `projects/${projectId}/stage1` });
+        const res = await uploadMedia(file, { folder: `projects/${projectId}/${stage}` });
 
         let itemType: any = "image";
         if (res.type === "video") itemType = "video";
@@ -363,7 +404,7 @@ export function StitchCanvas({
       setIsUploading(true);
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const res = await uploadMedia(file, { folder: `projects/${projectId}/stage1` });
+        const res = await uploadMedia(file, { folder: `projects/${projectId}/${stage}` });
 
         let itemType: any = "image";
         if (res.type === "video") itemType = "video";
@@ -402,13 +443,26 @@ export function StitchCanvas({
             <span className="w-2 h-2 rounded-full bg-lime-400" />
             <span className="w-2 h-2 rounded-full bg-green-400" />
           </div>
-          <span className="font-semibold">Stage 1: Foundation</span>
+          <span className="font-semibold">
+            {stage === "stage2" ? "Stage 2: Development" : "Stage 1: Foundation"}
+          </span>
           <span className="text-[#7E776F]">·</span>
-          <span className="text-[#8A837A]">Stitch Canvas</span>
+          <span className="text-[#8A837A]">
+            {stage === "stage2" ? "Stitch Board" : "Stitch Canvas"}
+          </span>
           <span className="text-[10px] text-[#A3E635] bg-[#A3E635]/15 px-2 py-0.5 rounded-full font-mono">
             {items?.length || 0} nodes
           </span>
         </div>
+
+        {onSwitchToPosts && (
+          <button
+            onClick={onSwitchToPosts}
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-[#241F1B]/90 hover:bg-[#2F2923] backdrop-blur-md border border-[#3E3832] hover:border-[#A3E635] rounded-xl text-xs font-mono text-[#EDE6DD] transition-all shadow-lg"
+          >
+            <span>Switch to Iteration Posts 📝</span>
+          </button>
+        )}
       </div>
 
       {/* Floating Minimal Tool Palette */}
@@ -903,7 +957,20 @@ export function StitchCanvas({
           <span>Select element to drag & resize corners/edges</span>
         </div>
 
-        {onNavigateToStage2 && (
+        {onNavigateNext ? (
+          <button
+            onClick={onNavigateNext}
+            className="pointer-events-auto flex items-center gap-2 px-5 py-2.5 bg-[#A3E635] hover:bg-[#65A30D] text-[#171512] font-semibold text-xs rounded-xl transition-all shadow-lg active:scale-95 ml-auto"
+          >
+            <span>
+              {nextLabel ||
+                (stage === "stage2"
+                  ? "Proceed to Output: Release"
+                  : "Proceed to Stage 2: Development")}
+            </span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        ) : onNavigateToStage2 ? (
           <button
             onClick={onNavigateToStage2}
             className="pointer-events-auto flex items-center gap-2 px-5 py-2.5 bg-[#A3E635] hover:bg-[#65A30D] text-[#171512] font-semibold text-xs rounded-xl transition-all shadow-lg active:scale-95 ml-auto"
@@ -911,7 +978,15 @@ export function StitchCanvas({
             <span>Proceed to Stage 2: Development</span>
             <ArrowRight className="w-4 h-4" />
           </button>
-        )}
+        ) : onNavigateToOutput ? (
+          <button
+            onClick={onNavigateToOutput}
+            className="pointer-events-auto flex items-center gap-2 px-5 py-2.5 bg-[#A3E635] hover:bg-[#65A30D] text-[#171512] font-semibold text-xs rounded-xl transition-all shadow-lg active:scale-95 ml-auto"
+          >
+            <span>Proceed to Output: Release</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        ) : null}
       </div>
     </div>
   );

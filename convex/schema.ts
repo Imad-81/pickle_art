@@ -109,6 +109,42 @@ export default defineSchema({
     .index("by_project", ["projectId"])
     .index("by_frame", ["frameId"]),
 
+  stage2Items: defineTable({
+    projectId: v.string(),
+    type: v.union(
+      v.literal("image"),
+      v.literal("text_sticky"),
+      v.literal("shape"),
+      v.literal("video"),
+      v.literal("audio"),
+      v.literal("pdf"),
+      v.literal("link"),
+      v.literal("frame")
+    ),
+    x: v.number(),
+    y: v.number(),
+    width: v.number(),
+    height: v.number(),
+    rotation: v.optional(v.number()),
+    zIndex: v.number(),
+    color: v.optional(v.string()), // for stickies or shapes
+    content: v.string(), // text content or URL
+    title: v.optional(v.string()),
+    frameId: v.optional(v.string()), // parent frame ID if grouped
+    metadata: v.optional(
+      v.object({
+        author: v.optional(v.string()),
+        caption: v.optional(v.string()),
+        fileSize: v.optional(v.number()),
+        duration: v.optional(v.number()),
+      })
+    ),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_frame", ["frameId"]),
+
   stage2Subcards: defineTable({
     projectId: v.string(),
     title: v.string(),

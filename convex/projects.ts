@@ -193,12 +193,18 @@ export const deleteProject = mutation({
       .collect();
     for (const item of s1Items) await ctx.db.delete(item._id);
 
-    // Delete stage2 items
+    // Delete stage2 items (subcards & canvas items)
     const s2Items = await ctx.db
       .query("stage2Subcards")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .collect();
     for (const item of s2Items) await ctx.db.delete(item._id);
+
+    const s2CanvasItems = await ctx.db
+      .query("stage2Items")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+    for (const item of s2CanvasItems) await ctx.db.delete(item._id);
 
     // Delete final output
     const output = await ctx.db

@@ -8,7 +8,7 @@ import { api } from "@/convex/_generated/api";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { resolveMediaUrl } from "@/lib/media";
 import { StitchCanvas } from "@/components/stage1/StitchCanvas";
-import { SubcardEditor } from "@/components/stage2/SubcardEditor";
+import { Stage2View } from "@/components/stage2/Stage2View";
 import { FinalOutputView } from "@/components/output/FinalOutputView";
 import { CritPanel } from "@/components/crits/CritPanel";
 import {
@@ -143,7 +143,7 @@ export default function ProjectPage() {
                 : "text-[#8A837A] hover:text-[#EDE6DD]"
             }`}
           >
-            <span>Stage 2: Posts</span>
+            <span>Stage 2: Board & Posts</span>
             {project.stage2Completed && <CheckCircle className="w-3 h-3 text-[#A3E635]" />}
           </button>
           <button
@@ -240,10 +240,10 @@ export default function ProjectPage() {
                       {project.stage2Completed && <CheckCircle className="w-4 h-4 text-[#A3E635]" />}
                     </div>
                     <div className="text-sm font-serif font-semibold text-[#EDE6DD] group-hover:text-[#A3E635]">
-                      Development Posts
+                      Board & Posts
                     </div>
                     <p className="text-[11px] text-[#7E776F] mt-1">
-                      Step-by-step experiment logs & polls.
+                      Infinite Stitch canvas + experiment logs & polls.
                     </p>
                   </button>
 
@@ -378,10 +378,10 @@ export default function ProjectPage() {
           </div>
         )}
 
-        {/* TAB 3: STAGE 2 (Sub-cards & Experiments) */}
+        {/* TAB 3: STAGE 2 (Stitch Board & Sub-cards/Experiments) */}
         {activeStage === "stage2" && (
           <div className="animate-fade-in">
-            <SubcardEditor
+            <Stage2View
               projectId={project._id}
               isEditable={isOwner}
               onNavigateToOutput={() => setActiveStage("output")}
