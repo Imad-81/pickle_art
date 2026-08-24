@@ -136,7 +136,7 @@ export function FeedbackNotesView() {
               : "bg-[#1C1A17] text-[#8A837A] border-[#2E2924] hover:text-[#EDE6DD]"
           }`}
         >
-          Todo
+          Feedback notes
         </button>
         <button
           onClick={() => setFilterStatus("addressed")}

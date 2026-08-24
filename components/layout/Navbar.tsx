@@ -147,7 +147,7 @@ export function Navbar() {
                     className="flex items-center gap-2 px-3.5 py-2 text-xs text-[#EDE6DD] hover:bg-[#2A2521] transition-colors"
                   >
                     <BookOpen className="w-4 h-4 text-[#8A837A]" />
-                    <span>Feedback Notebook</span>
+                    <span>Feedback Notes</span>
                   </Link>
                   <button
                     onClick={() => {

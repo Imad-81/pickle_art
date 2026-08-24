@@ -130,7 +130,7 @@ function MessagesHubContent() {
             <span>Rooms</span>
           </button>
 
-          {/* 3. Feedback Notebook Tab */}
+          {/* 3. Feedback Notes Tab */}
           <button
             onClick={() => setActiveTab("feedback_notes")}
             className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 rounded-lg text-[11px] sm:text-xs font-mono transition-all shrink-0 ${
@@ -140,7 +140,7 @@ function MessagesHubContent() {
             }`}
           >
             <BookOpen className="w-3.5 h-3.5" />
-            <span>Notebook</span>
+            <span>Feedback Notes</span>
           </button>
         </div>
       </div>

@@ -39,6 +39,19 @@ const STICKY_COLORS = [
   { name: "Gray", bg: "#DCDDE3", text: "#2B2C33" },
 ];
 
+type ResizeHandleType = "nw" | "ne" | "se" | "sw" | "n" | "s" | "e" | "w";
+
+interface ResizingState {
+  itemId: string;
+  handle: ResizeHandleType;
+  startX: number;
+  startY: number;
+  initialX: number;
+  initialY: number;
+  initialWidth: number;
+  initialHeight: number;
+}
+
 export function StitchCanvas({
   projectId,
   isEditable = true,
@@ -62,6 +75,12 @@ export function StitchCanvas({
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [isUploading, setIsUploading] = useState(false);
+
+  // Resizing state
+  const [resizingState, setResizingState] = useState<ResizingState | null>(null);
+  const [localDimensions, setLocalDimensions] = useState<
+    Record<string, { x: number; y: number; width: number; height: number }>
+  >({});
 
   const containerRef = useRef<HTMLDivElement>(null);
   const panStartRef = useRef({ x: 0, y: 0 });
@@ -110,6 +129,34 @@ export function StitchCanvas({
     }
   };
 
+  const handleResizeMouseDown = (
+    e: React.MouseEvent,
+    item: any,
+    handle: ResizeHandleType
+  ) => {
+    if (!isEditable) return;
+    e.stopPropagation();
+    e.preventDefault();
+
+    const currentDim = localDimensions[item._id] || {
+      x: item.x,
+      y: item.y,
+      width: item.width || (item.type === "pdf" ? 300 : item.type === "audio" ? 280 : 260),
+      height: item.height || (item.type === "pdf" ? 360 : item.type === "audio" ? 100 : 200),
+    };
+
+    setResizingState({
+      itemId: item._id,
+      handle,
+      startX: e.clientX,
+      startY: e.clientY,
+      initialX: currentDim.x,
+      initialY: currentDim.y,
+      initialWidth: currentDim.width,
+      initialHeight: currentDim.height,
+    });
+  };
+
   const handleMouseMove = (e: React.MouseEvent) => {
     if (isPanning) {
       setTransform((prev) => ({
@@ -120,6 +167,49 @@ export function StitchCanvas({
       return;
     }
 
+    // Handle Active Resizing
+    if (resizingState && isEditable) {
+      const dx = (e.clientX - resizingState.startX) / transform.scale;
+      const dy = (e.clientY - resizingState.startY) / transform.scale;
+
+      let newWidth = resizingState.initialWidth;
+      let newHeight = resizingState.initialHeight;
+      let newX = resizingState.initialX;
+      let newY = resizingState.initialY;
+
+      const minW = 80;
+      const minH = 50;
+
+      if (resizingState.handle.includes("e")) {
+        newWidth = Math.max(minW, Math.round(resizingState.initialWidth + dx));
+      }
+      if (resizingState.handle.includes("s")) {
+        newHeight = Math.max(minH, Math.round(resizingState.initialHeight + dy));
+      }
+      if (resizingState.handle.includes("w")) {
+        const rawW = resizingState.initialWidth - dx;
+        newWidth = Math.max(minW, Math.round(rawW));
+        newX = Math.round(resizingState.initialX + (resizingState.initialWidth - newWidth));
+      }
+      if (resizingState.handle.includes("n")) {
+        const rawH = resizingState.initialHeight - dy;
+        newHeight = Math.max(minH, Math.round(rawH));
+        newY = Math.round(resizingState.initialY + (resizingState.initialHeight - newHeight));
+      }
+
+      setLocalDimensions((prev) => ({
+        ...prev,
+        [resizingState.itemId]: {
+          x: newX,
+          y: newY,
+          width: newWidth,
+          height: newHeight,
+        },
+      }));
+      return;
+    }
+
+    // Handle Active Dragging
     if (draggedItemId && isEditable) {
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect) return;
@@ -127,16 +217,47 @@ export function StitchCanvas({
       const canvasX = (e.clientX - rect.left - transform.x) / transform.scale - dragOffset.x;
       const canvasY = (e.clientY - rect.top - transform.y) / transform.scale - dragOffset.y;
 
+      const roundedX = Math.round(canvasX);
+      const roundedY = Math.round(canvasY);
+
+      setLocalDimensions((prev) => {
+        const current = prev[draggedItemId] || { width: 240, height: 180 };
+        return {
+          ...prev,
+          [draggedItemId]: {
+            ...current,
+            x: roundedX,
+            y: roundedY,
+          },
+        };
+      });
+
       updateTransformMutation({
         itemId: draggedItemId as any,
-        x: Math.round(canvasX),
-        y: Math.round(canvasY),
+        x: roundedX,
+        y: roundedY,
       }).catch(console.error);
     }
   };
 
   const handleMouseUp = () => {
     setIsPanning(false);
+
+    // Commit final resize dimensions to Convex
+    if (resizingState) {
+      const dim = localDimensions[resizingState.itemId];
+      if (dim) {
+        updateTransformMutation({
+          itemId: resizingState.itemId as any,
+          x: dim.x,
+          y: dim.y,
+          width: dim.width,
+          height: dim.height,
+        }).catch(console.error);
+      }
+      setResizingState(null);
+    }
+
     setDraggedItemId(null);
   };
 
@@ -212,7 +333,7 @@ export function StitchCanvas({
           x: dropPos.x + i * 40,
           y: dropPos.y + i * 40,
           width: itemType === "audio" ? 280 : 320,
-          height: itemType === "audio" ? 120 : 220,
+          height: itemType === "audio" ? 120 : 240,
           rotation: Math.round((Math.random() * 2 - 1) * 10) / 10,
           zIndex: 5,
           content: res.url,
@@ -255,7 +376,7 @@ export function StitchCanvas({
           x: centerPos.x + i * 30,
           y: centerPos.y + i * 30,
           width: itemType === "audio" ? 280 : 320,
-          height: itemType === "audio" ? 120 : 220,
+          height: itemType === "audio" ? 120 : 240,
           rotation: 0,
           zIndex: 5,
           content: res.url,
@@ -283,7 +404,7 @@ export function StitchCanvas({
           </div>
           <span className="font-semibold">Stage 1: Foundation</span>
           <span className="text-[#7E776F]">·</span>
-          <span className="text-[#8A837A]">Google Stitch Board</span>
+          <span className="text-[#8A837A]">Stitch Canvas</span>
           <span className="text-[10px] text-[#A3E635] bg-[#A3E635]/15 px-2 py-0.5 rounded-full font-mono">
             {items?.length || 0} nodes
           </span>
@@ -419,6 +540,15 @@ export function StitchCanvas({
           {items &&
             items.map((item) => {
               const isSelected = selectedItemId === item._id;
+              const isResizingThis = resizingState?.itemId === item._id;
+
+              // Current dimension with live local preview override
+              const dim = localDimensions[item._id] || {
+                x: item.x,
+                y: item.y,
+                width: item.width || (item.type === "pdf" ? 300 : item.type === "audio" ? 280 : 260),
+                height: item.height || (item.type === "pdf" ? 360 : item.type === "audio" ? 100 : 200),
+              };
 
               const handleItemMouseDown = (e: React.MouseEvent) => {
                 if (activeTool === "hand" || e.button === 1) return;
@@ -432,10 +562,72 @@ export function StitchCanvas({
                   const mouseCanvasX = (e.clientX - rect.left - transform.x) / transform.scale;
                   const mouseCanvasY = (e.clientY - rect.top - transform.y) / transform.scale;
                   setDragOffset({
-                    x: mouseCanvasX - item.x,
-                    y: mouseCanvasY - item.y,
+                    x: mouseCanvasX - dim.x,
+                    y: mouseCanvasY - dim.y,
                   });
                 }
+              };
+
+              // Reusable Resize Handles Overlay
+              const renderResizeHandles = () => {
+                if (!isSelected || !isEditable) return null;
+                return (
+                  <>
+                    {/* Selection border ring */}
+                    <div className="absolute -inset-1 border-2 border-[#A3E635] rounded-xl pointer-events-none z-30" />
+
+                    {/* 4 Corner handles */}
+                    <div
+                      onMouseDown={(e) => handleResizeMouseDown(e, item, "nw")}
+                      className="absolute -top-2 -left-2 w-3.5 h-3.5 bg-[#A3E635] border-2 border-[#171512] rounded-sm pointer-events-auto cursor-nwse-resize hover:scale-125 transition-transform z-40 shadow-md"
+                      title="Resize Top-Left"
+                    />
+                    <div
+                      onMouseDown={(e) => handleResizeMouseDown(e, item, "ne")}
+                      className="absolute -top-2 -right-2 w-3.5 h-3.5 bg-[#A3E635] border-2 border-[#171512] rounded-sm pointer-events-auto cursor-nesw-resize hover:scale-125 transition-transform z-40 shadow-md"
+                      title="Resize Top-Right"
+                    />
+                    <div
+                      onMouseDown={(e) => handleResizeMouseDown(e, item, "se")}
+                      className="absolute -bottom-2 -right-2 w-3.5 h-3.5 bg-[#A3E635] border-2 border-[#171512] rounded-sm pointer-events-auto cursor-nwse-resize hover:scale-125 transition-transform z-40 shadow-md"
+                      title="Resize Bottom-Right"
+                    />
+                    <div
+                      onMouseDown={(e) => handleResizeMouseDown(e, item, "sw")}
+                      className="absolute -bottom-2 -left-2 w-3.5 h-3.5 bg-[#A3E635] border-2 border-[#171512] rounded-sm pointer-events-auto cursor-nesw-resize hover:scale-125 transition-transform z-40 shadow-md"
+                      title="Resize Bottom-Left"
+                    />
+
+                    {/* 4 Edge handles */}
+                    <div
+                      onMouseDown={(e) => handleResizeMouseDown(e, item, "n")}
+                      className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-4 h-2 bg-[#A3E635] border border-[#171512] rounded-full pointer-events-auto cursor-ns-resize hover:scale-125 transition-transform z-40 shadow-md"
+                      title="Resize Top"
+                    />
+                    <div
+                      onMouseDown={(e) => handleResizeMouseDown(e, item, "s")}
+                      className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-4 h-2 bg-[#A3E635] border border-[#171512] rounded-full pointer-events-auto cursor-ns-resize hover:scale-125 transition-transform z-40 shadow-md"
+                      title="Resize Bottom"
+                    />
+                    <div
+                      onMouseDown={(e) => handleResizeMouseDown(e, item, "w")}
+                      className="absolute top-1/2 -left-1.5 -translate-y-1/2 w-2 h-4 bg-[#A3E635] border border-[#171512] rounded-full pointer-events-auto cursor-ew-resize hover:scale-125 transition-transform z-40 shadow-md"
+                      title="Resize Left"
+                    />
+                    <div
+                      onMouseDown={(e) => handleResizeMouseDown(e, item, "e")}
+                      className="absolute top-1/2 -right-1.5 -translate-y-1/2 w-2 h-4 bg-[#A3E635] border border-[#171512] rounded-full pointer-events-auto cursor-ew-resize hover:scale-125 transition-transform z-40 shadow-md"
+                      title="Resize Right"
+                    />
+
+                    {/* Live Dimension Indicator Badge */}
+                    {isResizingThis && (
+                      <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-[#171512] text-[#A3E635] border border-[#A3E635]/50 rounded-md text-[10px] font-mono shadow-xl whitespace-nowrap z-50">
+                        {dim.width} × {dim.height} px
+                      </div>
+                    )}
+                  </>
+                );
               };
 
               // 1. Frame / Section Node
@@ -445,10 +637,10 @@ export function StitchCanvas({
                     key={item._id}
                     onMouseDown={handleItemMouseDown}
                     style={{
-                      left: item.x,
-                      top: item.y,
-                      width: item.width,
-                      height: item.height,
+                      left: dim.x,
+                      top: dim.y,
+                      width: dim.width,
+                      height: dim.height,
                       zIndex: item.zIndex || 1,
                     }}
                     className={`absolute rounded-2xl border-2 border-dashed transition-shadow ${
@@ -464,12 +656,13 @@ export function StitchCanvas({
                       {isSelected && isEditable && (
                         <button
                           onClick={() => deleteItemMutation({ itemId: item._id as any })}
-                          className="p-1 text-red-400 hover:text-red-300"
+                          className="p-1 text-red-400 hover:text-red-300 pointer-events-auto"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       )}
                     </div>
+                    {renderResizeHandles()}
                   </div>
                 );
               }
@@ -481,20 +674,21 @@ export function StitchCanvas({
                     key={item._id}
                     onMouseDown={handleItemMouseDown}
                     style={{
-                      left: item.x,
-                      top: item.y,
-                      width: item.width,
-                      minHeight: item.height,
+                      left: dim.x,
+                      top: dim.y,
+                      width: dim.width,
+                      height: dim.height,
+                      minHeight: dim.height,
                       transform: `rotate(${item.rotation || 0}deg)`,
                       backgroundColor: item.color || "#FFE066",
                       zIndex: item.zIndex || 10,
                     }}
-                    className={`absolute p-4 rounded-sm shadow-xl transition-transform font-hand cursor-move ${
-                      isSelected ? "ring-2 ring-[#A3E635] ring-offset-2 ring-offset-black scale-[1.02]" : "hover:scale-[1.01]"
+                    className={`absolute p-4 rounded-sm shadow-xl font-hand cursor-move ${
+                      isSelected ? "ring-2 ring-[#A3E635] ring-offset-2 ring-offset-black scale-[1.01]" : "hover:scale-[1.005]"
                     }`}
                   >
                     {isSelected && isEditable && (
-                      <div className="absolute -top-3 -right-3 flex items-center gap-1 z-30 bg-[#171512] p-1 rounded-full border border-[#3E3832]">
+                      <div className="absolute -top-3 -right-3 flex items-center gap-1 z-50 bg-[#171512] p-1 rounded-full border border-[#3E3832]">
                         <button
                           onClick={() => deleteItemMutation({ itemId: item._id as any })}
                           className="p-1 text-red-400 hover:text-red-300"
@@ -505,6 +699,11 @@ export function StitchCanvas({
                     )}
                     {isEditable ? (
                       <textarea
+                        onFocus={() => setSelectedItemId(item._id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedItemId(item._id);
+                        }}
                         value={item.content}
                         onChange={(e) =>
                           updateContentMutation({
@@ -512,11 +711,12 @@ export function StitchCanvas({
                             content: e.target.value,
                           })
                         }
-                        className="w-full h-full bg-transparent border-none focus:outline-none resize-none text-sm font-hand text-black leading-snug"
+                        className="w-full h-full bg-transparent border-none focus:outline-none resize-none text-sm font-hand text-black leading-snug cursor-text"
                       />
                     ) : (
                       <p className="text-sm font-hand text-black leading-snug">{item.content}</p>
                     )}
+                    {renderResizeHandles()}
                   </div>
                 );
               }
@@ -528,18 +728,19 @@ export function StitchCanvas({
                     key={item._id}
                     onMouseDown={handleItemMouseDown}
                     style={{
-                      left: item.x,
-                      top: item.y,
-                      width: item.width,
+                      left: dim.x,
+                      top: dim.y,
+                      width: dim.width,
+                      height: dim.height ? `${dim.height}px` : "auto",
                       transform: `rotate(${item.rotation || 0}deg)`,
                       zIndex: item.zIndex || 5,
                     }}
-                    className={`absolute rounded-xl overflow-hidden bg-[#241F1B] border transition-all cursor-move shadow-xl ${
-                      isSelected ? "border-[#A3E635] ring-2 ring-[#A3E635]/50 scale-[1.02]" : "border-[#342D26] hover:border-[#4E443A]"
+                    className={`absolute rounded-xl overflow-hidden bg-[#241F1B] border transition-all cursor-move shadow-xl flex flex-col ${
+                      isSelected ? "border-[#A3E635] ring-2 ring-[#A3E635]/50 scale-[1.01]" : "border-[#342D26] hover:border-[#4E443A]"
                     }`}
                   >
                     {isSelected && isEditable && (
-                      <div className="absolute top-2 right-2 flex items-center gap-1 z-30 bg-[#171512]/90 p-1 rounded-lg border border-[#3E3832]">
+                      <div className="absolute top-2 right-2 flex items-center gap-1 z-50 bg-[#171512]/90 p-1 rounded-lg border border-[#3E3832]">
                         <button
                           onClick={() => deleteItemMutation({ itemId: item._id as any })}
                           className="p-1 text-red-400 hover:text-red-300"
@@ -551,13 +752,14 @@ export function StitchCanvas({
                     <img
                       src={resolveMediaUrl(item.content)}
                       alt={item.title || "Moodboard Image"}
-                      className="w-full h-auto object-cover pointer-events-none rounded-t-xl"
+                      className="w-full flex-1 min-h-0 object-cover pointer-events-none rounded-t-xl"
                     />
                     {item.metadata?.caption && (
-                      <div className="p-2.5 bg-[#1C1A17] text-[11px] font-mono text-[#8A837A]">
+                      <div className="p-2 bg-[#1C1A17] text-[11px] font-mono text-[#8A837A] shrink-0 border-t border-[#2E2924]">
                         {item.metadata.caption}
                       </div>
                     )}
+                    {renderResizeHandles()}
                   </div>
                 );
               }
@@ -569,9 +771,9 @@ export function StitchCanvas({
                     key={item._id}
                     onMouseDown={handleItemMouseDown}
                     style={{
-                      left: item.x,
-                      top: item.y,
-                      width: item.width,
+                      left: dim.x,
+                      top: dim.y,
+                      width: dim.width,
                       zIndex: item.zIndex || 5,
                     }}
                     className={`absolute p-4 rounded-xl bg-[#241F1B] border border-[#342D26] shadow-xl flex flex-col gap-2 cursor-move ${
@@ -593,6 +795,7 @@ export function StitchCanvas({
                       )}
                     </div>
                     <audio src={resolveMediaUrl(item.content)} controls className="w-full h-8" />
+                    {renderResizeHandles()}
                   </div>
                 );
               }
@@ -604,17 +807,18 @@ export function StitchCanvas({
                     key={item._id}
                     onMouseDown={handleItemMouseDown}
                     style={{
-                      left: item.x,
-                      top: item.y,
-                      width: item.width,
+                      left: dim.x,
+                      top: dim.y,
+                      width: dim.width,
+                      height: dim.height ? `${dim.height}px` : "auto",
                       zIndex: item.zIndex || 5,
                     }}
-                    className={`absolute rounded-xl overflow-hidden bg-[#241F1B] border shadow-xl cursor-move ${
+                    className={`absolute rounded-xl overflow-hidden bg-[#241F1B] border shadow-xl cursor-move flex flex-col ${
                       isSelected ? "border-[#A3E635]" : "border-[#342D26]"
                     }`}
                   >
                     {isSelected && isEditable && (
-                      <div className="absolute top-2 right-2 z-30">
+                      <div className="absolute top-2 right-2 z-50">
                         <button
                           onClick={() => deleteItemMutation({ itemId: item._id as any })}
                           className="p-1 rounded bg-[#171512] text-red-400"
@@ -623,7 +827,8 @@ export function StitchCanvas({
                         </button>
                       </div>
                     )}
-                    <video src={resolveMediaUrl(item.content)} controls className="w-full h-auto" />
+                    <video src={resolveMediaUrl(item.content)} controls className="w-full flex-1 min-h-0 object-cover" />
+                    {renderResizeHandles()}
                   </div>
                 );
               }
@@ -636,10 +841,10 @@ export function StitchCanvas({
                     key={item._id}
                     onMouseDown={handleItemMouseDown}
                     style={{
-                      left: item.x,
-                      top: item.y,
-                      width: 300,
-                      height: 360,
+                      left: dim.x,
+                      top: dim.y,
+                      width: dim.width,
+                      height: dim.height,
                       zIndex: item.zIndex || 5,
                     }}
                     className={`absolute rounded-xl overflow-hidden bg-[#241F1B] border shadow-xl cursor-move ${
@@ -667,7 +872,7 @@ export function StitchCanvas({
                     <iframe
                       src={pdfUrl}
                       title={item.title || "PDF Preview"}
-                      className="w-full h-[calc(100% - 34px)] pointer-events-none"
+                      className="w-full h-[calc(100%-34px)] pointer-events-none"
                       style={{ border: "none" }}
                     />
                     <a
@@ -678,6 +883,7 @@ export function StitchCanvas({
                     >
                       Open PDF ↗
                     </a>
+                    {renderResizeHandles()}
                   </div>
                 );
               }
@@ -694,7 +900,7 @@ export function StitchCanvas({
           <span>·</span>
           <span>Zoom: Mouse Wheel</span>
           <span>·</span>
-          <span>Drop files directly onto canvas</span>
+          <span>Select element to drag & resize corners/edges</span>
         </div>
 
         {onNavigateToStage2 && (
