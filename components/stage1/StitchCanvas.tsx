@@ -630,6 +630,7 @@ export function StitchCanvas({
 
               // 6. PDF Node
               if (item.type === "pdf") {
+                const pdfUrl = resolveMediaUrl(item.content);
                 return (
                   <div
                     key={item._id}
@@ -637,25 +638,46 @@ export function StitchCanvas({
                     style={{
                       left: item.x,
                       top: item.y,
-                      width: 240,
+                      width: 300,
+                      height: 360,
                       zIndex: item.zIndex || 5,
                     }}
-                    className="absolute p-3.5 rounded-xl bg-[#241F1B] border border-[#3E3832] shadow-xl flex items-center gap-3 cursor-move"
+                    className={`absolute rounded-xl overflow-hidden bg-[#241F1B] border shadow-xl cursor-move ${
+                      isSelected
+                        ? "border-[#A3E635] ring-2 ring-[#A3E635]/50"
+                        : "border-[#3E3832] hover:border-[#4E443A]"
+                    }`}
                   >
-                    <FileText className="w-8 h-8 text-[#A3E635]" />
-                    <div className="truncate flex-1">
-                      <div className="text-xs font-medium text-[#EDE6DD] truncate">
-                        {item.title || "Document.pdf"}
+                    <div className="flex items-center justify-between px-3 py-2 bg-[#1C1A17] border-b border-[#2E2924]">
+                      <div className="flex items-center gap-2 truncate">
+                        <FileText className="w-3.5 h-3.5 text-[#A3E635] shrink-0" />
+                        <span className="text-[11px] font-mono font-medium text-[#EDE6DD] truncate">
+                          {item.title || "Document.pdf"}
+                        </span>
                       </div>
-                      <a
-                        href={resolveMediaUrl(item.content)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-[10px] text-[#A3E635] underline"
-                      >
-                        View PDF
-                      </a>
+                      {isSelected && isEditable && (
+                        <button
+                          onClick={() => deleteItemMutation({ itemId: item._id as any })}
+                          className="p-1 text-red-400 hover:text-red-300"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
+                    <iframe
+                      src={pdfUrl}
+                      title={item.title || "PDF Preview"}
+                      className="w-full h-[calc(100% - 34px)] pointer-events-none"
+                      style={{ border: "none" }}
+                    />
+                    <a
+                      href={pdfUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="absolute bottom-2 right-2 z-20 px-2 py-1 bg-[#171512]/90 border border-[#3E3832] rounded-lg text-[10px] font-mono text-[#A3E635] transition-colors"
+                    >
+                      Open PDF ↗
+                    </a>
                   </div>
                 );
               }
