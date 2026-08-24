@@ -25,7 +25,79 @@ export const getUserChannels = query({
       .query("channelMemberships")
       .withIndex("by_user", (q) => q.eq("userId", args.userId))
       .collect();
-    return memberships.map((m) => m.channelSlug);
+
+    const slugs = new Set(memberships.map((m) => m.channelSlug.toLowerCase()));
+
+    // 1. Resolve user by ID / username / email
+    let user: any = null;
+    try {
+      user = await ctx.db.get(args.userId as any);
+    } catch {
+      // not a direct doc ID
+    }
+
+    if (!user) {
+      user = await ctx.db
+        .query("users")
+        .withIndex("by_username", (q) => q.eq("username", args.userId))
+        .first();
+    }
+
+    if (!user) {
+      user = await ctx.db
+        .query("users")
+        .withIndex("by_email", (q) => q.eq("email", args.userId))
+        .first();
+    }
+
+    if (!user) {
+      const allUsers = await ctx.db.query("users").collect();
+      user = allUsers.find(
+        (u) =>
+          u._id === args.userId ||
+          u.username === args.userId ||
+          u.email === args.userId
+      );
+    }
+
+    const DISCIPLINE_MAP: Record<string, string> = {
+      motion: "motion",
+      "3d": "motion",
+      spatial: "motion",
+      animation: "motion",
+      packaging: "packaging",
+      branding: "packaging",
+      kraft: "packaging",
+      illustration: "illustration",
+      "concept-art": "illustration",
+      typography: "typography",
+      editorial: "typography",
+      industrial: "industrial",
+      furniture: "industrial",
+      architecture: "architecture",
+      space: "architecture",
+    };
+
+    if (user && user.disciplines) {
+      for (const d of user.disciplines) {
+        const cleaned = d.replace("#", "").toLowerCase().trim();
+        if (cleaned) {
+          slugs.add(cleaned);
+          if (DISCIPLINE_MAP[cleaned]) {
+            slugs.add(DISCIPLINE_MAP[cleaned]);
+          }
+        }
+      }
+    }
+
+    const allChannels = await ctx.db.query("channels").collect();
+    let matched = allChannels.filter((c) => slugs.has(c.slug.toLowerCase()));
+
+    if (matched.length === 0) {
+      matched = allChannels.slice(0, 3);
+    }
+
+    return matched;
   },
 });
 

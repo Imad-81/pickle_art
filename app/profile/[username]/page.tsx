@@ -18,6 +18,7 @@ import {
   Award,
   ChevronLeft,
   MessageSquare,
+  Hash,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -34,6 +35,15 @@ export default function ProfilePage() {
     api.projects.getUserProjects,
     profileUser ? { userId: profileUser._id } : "skip"
   );
+  const userChannels = useQuery(
+    api.channels.getUserChannels,
+    profileUser ? { userId: profileUser._id } : "skip"
+  );
+  const viewerChannels = useQuery(
+    api.channels.getUserChannels,
+    user ? { userId: user.id } : "skip"
+  );
+  const viewerChannelSlugs = new Set(viewerChannels?.map((c) => c.slug.toLowerCase()) || []);
 
   const isFollowing = useQuery(
     api.follows.isFollowing,
@@ -162,6 +172,92 @@ export default function ProfilePage() {
                   {d}
                 </span>
               ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* CHANNELS SECTION (Matches Wireframe: Profile -> Channels -> Growth Trail -> Cards) */}
+      <div className="p-6 sm:p-7 bg-[#1C1A17] border border-[#2E2924] rounded-3xl shadow-xl space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Hash className="w-4 h-4 text-[#A3E635]" />
+            <h2 className="text-base font-serif font-bold text-[#EDE6DD]">
+              Channels
+            </h2>
+            {userChannels && (
+              <span className="text-xs font-mono text-[#8A837A] bg-[#241F1B] border border-[#2E2924] px-2 py-0.5 rounded-full font-semibold">
+                {userChannels.length}
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3 text-xs font-mono">
+            <span className="text-[11px] text-[#8A837A] hidden sm:inline">
+              ● Colored ring = Shared channel
+            </span>
+            <Link
+              href="/messages?tab=channels"
+              className="text-[#A3E635] hover:underline flex items-center gap-1"
+            >
+              <span>Explore All Rooms</span>
+              <span>→</span>
+            </Link>
+          </div>
+        </div>
+
+        {/* Circular Channel Stories with colored rings per wireframe */}
+        <div className="flex items-center gap-4 sm:gap-6 overflow-x-auto pb-2 pt-1 no-scrollbar">
+          {userChannels && userChannels.length > 0 ? (
+            userChannels.map((ch) => {
+              const isCommon = isMe || viewerChannelSlugs.has(ch.slug.toLowerCase());
+              return (
+                <Link
+                  key={ch.slug}
+                  href={`/messages?tab=channels&channel=${ch.slug}`}
+                  className="flex flex-col items-center gap-2 group shrink-0"
+                  title={`Enter #${ch.slug} channel`}
+                >
+                  {/* Circular channel avatar with colored ring */}
+                  <div
+                    className={`w-16 h-16 sm:w-18 sm:h-18 rounded-full p-[2.5px] transition-all transform group-hover:scale-105 shadow-md ${
+                      isCommon
+                        ? "bg-gradient-to-tr from-[#A3E635] via-[#4ADE80] to-[#386641] ring-2 ring-[#A3E635]/40 shadow-[#A3E635]/20"
+                        : "bg-[#2E2924] group-hover:bg-[#4E443A]"
+                    }`}
+                  >
+                    <div className="w-full h-full rounded-full bg-[#141210] p-1 flex flex-col items-center justify-center relative overflow-hidden">
+                      {ch.coverImage ? (
+                        <img
+                          src={ch.coverImage}
+                          alt={ch.name}
+                          className="w-full h-full rounded-full object-cover opacity-85 group-hover:opacity-100 transition-opacity"
+                        />
+                      ) : (
+                        <div
+                          className="w-full h-full rounded-full flex items-center justify-center font-bold text-xs font-mono text-[#171512]"
+                          style={{ backgroundColor: ch.colorCode || "#A3E635" }}
+                        >
+                          #{ch.slug[0].toUpperCase()}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="text-center max-w-[86px]">
+                    <div className="text-xs font-sans font-medium text-[#EDE6DD] group-hover:text-[#A3E635] truncate transition-colors">
+                      {ch.name}
+                    </div>
+                    <div className="text-[10px] font-mono text-[#7E776F] truncate">
+                      {isCommon ? "Shared room" : `${ch.memberCount} makers`}
+                    </div>
+                  </div>
+                </Link>
+              );
+            })
+          ) : (
+            <div className="text-xs text-[#8A837A] font-mono py-2">
+              No channels joined yet.
             </div>
           )}
         </div>
