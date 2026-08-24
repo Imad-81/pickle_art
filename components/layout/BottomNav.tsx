@@ -24,7 +24,7 @@ export function BottomNav() {
       <Link
         href="/"
         className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${
-          isHome ? "text-[#E08B3F]" : "text-[#8A837A] hover:text-[#EDE6DD]"
+          isHome ? "text-[#A3E635]" : "text-[#8A837A] hover:text-[#EDE6DD]"
         }`}
       >
         <Home className={`w-5 h-5 ${isHome ? "stroke-[2.5]" : "stroke-[1.75]"}`} />
@@ -35,7 +35,7 @@ export function BottomNav() {
       <Link
         href="/messages"
         className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${
-          isMessages ? "text-[#E08B3F]" : "text-[#8A837A] hover:text-[#EDE6DD]"
+          isMessages ? "text-[#A3E635]" : "text-[#8A837A] hover:text-[#EDE6DD]"
         }`}
       >
         <Mail className={`w-5 h-5 ${isMessages ? "stroke-[2.5]" : "stroke-[1.75]"}`} />
@@ -45,7 +45,7 @@ export function BottomNav() {
       {/* 3. Create Action (+) Button */}
       <Link
         href="/project/create"
-        className="relative -top-3 p-3.5 rounded-full bg-gradient-to-br from-[#E08B3F] to-[#CA782F] text-[#171512] shadow-lg shadow-[#E08B3F]/25 hover:scale-105 active:scale-95 transition-all flex items-center justify-center border-2 border-[#171512]"
+        className="relative -top-3 p-3.5 rounded-full bg-gradient-to-br from-[#A3E635] to-[#65A30D] text-[#171512] shadow-lg shadow-[#A3E635]/25 hover:scale-105 active:scale-95 transition-all flex items-center justify-center border-2 border-[#171512]"
       >
         <Plus className="w-6 h-6 stroke-[2.75]" />
       </Link>
@@ -54,7 +54,7 @@ export function BottomNav() {
       <Link
         href="/discover"
         className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${
-          isDiscover ? "text-[#E08B3F]" : "text-[#8A837A] hover:text-[#EDE6DD]"
+          isDiscover ? "text-[#A3E635]" : "text-[#8A837A] hover:text-[#EDE6DD]"
         }`}
       >
         <Compass className={`w-5 h-5 ${isDiscover ? "stroke-[2.5]" : "stroke-[1.75]"}`} />
@@ -65,7 +65,7 @@ export function BottomNav() {
       <Link
         href={profileHref}
         className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${
-          isProfile ? "text-[#E08B3F]" : "text-[#8A837A] hover:text-[#EDE6DD]"
+          isProfile ? "text-[#A3E635]" : "text-[#8A837A] hover:text-[#EDE6DD]"
         }`}
       >
         {user ? (
@@ -73,7 +73,7 @@ export function BottomNav() {
             src={user.avatarUrl}
             alt={user.name}
             className={`w-5 h-5 rounded-full object-cover border ${
-              isProfile ? "border-[#E08B3F]" : "border-transparent"
+              isProfile ? "border-[#A3E635]" : "border-transparent"
             }`}
           />
         ) : (

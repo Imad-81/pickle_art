@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { resolveMediaUrl } from "@/lib/media";
 import {
   Sparkles,
   MessageSquare,
@@ -63,12 +64,12 @@ export function ProjectCard({ project }: { project: any }) {
     <Link
       href={`/project/${project._id}`}
       onClick={handleCardClick}
-      className="group flex flex-col bg-[#1C1A17] border border-[#2E2924] hover:border-[#E08B3F]/50 rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1"
+      className="group flex flex-col bg-[#1C1A17] border border-[#2E2924] hover:border-[#A3E635]/50 rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1"
     >
       {/* Cover Media */}
       <div className="relative w-full aspect-[4/3] bg-[#141210] overflow-hidden">
         <img
-          src={project.coverUrl}
+          src={resolveMediaUrl(project.coverUrl)}
           alt={project.title}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
@@ -88,13 +89,13 @@ export function ProjectCard({ project }: { project: any }) {
         {/* Stage Progress Pills (Bottom of cover image) */}
         <div className="absolute bottom-3 left-3 right-3 flex items-center gap-1.5 bg-black/75 backdrop-blur-md p-1.5 rounded-xl border border-white/10">
           <div className="flex-1 flex items-center justify-center gap-1 text-[9px] font-mono">
-            <span className={s1 ? "text-[#E08B3F] font-bold" : "text-[#7E776F]"}>S1</span>
-            {s1 ? <CheckCircle className="w-2.5 h-2.5 text-[#E08B3F]" /> : <span className="w-1.5 h-1.5 rounded-full bg-[#3E3832]" />}
+            <span className={s1 ? "text-[#A3E635] font-bold" : "text-[#7E776F]"}>S1</span>
+            {s1 ? <CheckCircle className="w-2.5 h-2.5 text-[#A3E635]" /> : <span className="w-1.5 h-1.5 rounded-full bg-[#3E3832]" />}
           </div>
           <div className="w-[1px] h-3 bg-white/20" />
           <div className="flex-1 flex items-center justify-center gap-1 text-[9px] font-mono">
-            <span className={s2 ? "text-[#E08B3F] font-bold" : "text-[#7E776F]"}>S2</span>
-            {s2 ? <CheckCircle className="w-2.5 h-2.5 text-[#E08B3F]" /> : <span className="w-1.5 h-1.5 rounded-full bg-[#3E3832]" />}
+            <span className={s2 ? "text-[#A3E635] font-bold" : "text-[#7E776F]"}>S2</span>
+            {s2 ? <CheckCircle className="w-2.5 h-2.5 text-[#A3E635]" /> : <span className="w-1.5 h-1.5 rounded-full bg-[#3E3832]" />}
           </div>
           <div className="w-[1px] h-3 bg-white/20" />
           <div className="flex-1 flex items-center justify-center gap-1 text-[9px] font-mono">
@@ -127,7 +128,7 @@ export function ProjectCard({ project }: { project: any }) {
                 className={`p-1 px-2 rounded-full text-[10px] font-mono flex items-center gap-1 transition-all ${
                   isFollowing
                     ? "bg-[#241F1B] text-[#8A837A] border border-[#3E3832]"
-                    : "bg-[#E08B3F]/20 text-[#E08B3F] hover:bg-[#E08B3F]/30 border border-[#E08B3F]/40"
+                    : "bg-[#A3E635]/20 text-[#A3E635] hover:bg-[#A3E635]/30 border border-[#A3E635]/40"
                 }`}
               >
                 {isFollowing ? (
@@ -146,7 +147,7 @@ export function ProjectCard({ project }: { project: any }) {
           </div>
 
           {/* Title & Description */}
-          <h3 className="text-base font-serif font-semibold text-[#EDE6DD] group-hover:text-[#E08B3F] transition-colors leading-snug line-clamp-1">
+          <h3 className="text-base font-serif font-semibold text-[#EDE6DD] group-hover:text-[#A3E635] transition-colors leading-snug line-clamp-1">
             {project.title}
           </h3>
           <p className="text-xs text-[#8A837A] font-sans line-clamp-2 mt-1 leading-relaxed">
@@ -166,7 +167,7 @@ export function ProjectCard({ project }: { project: any }) {
 
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1 text-[#EDE6DD]">
-              <MessageSquare className="w-3 h-3 text-[#E08B3F]" />
+              <MessageSquare className="w-3 h-3 text-[#A3E635]" />
               {project.stats?.critsCount || 0}
             </span>
             <span className="flex items-center gap-1 text-[#8A837A]">

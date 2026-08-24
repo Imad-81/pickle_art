@@ -8,7 +8,7 @@
   --bg-canvas: #1C1916;
   --text-primary: #EDE6DD;
   --text-muted: #9E978E;
-  --accent-amber: #E08B3F;
+  --accent-lime: #A3E635;
   --accent-rose: #C97B84;
   --accent-moss: #386641;
   --accent-sage: #8A9A86;
@@ -49,7 +49,7 @@ body {
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-amber);
+  background: var(--accent-lime);
 }
 
 /* Animations */

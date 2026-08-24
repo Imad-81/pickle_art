@@ -18,7 +18,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark h-full">
-      <body className="min-h-full flex flex-col bg-[#171512] text-[#EDE6DD] selection:bg-[#E08B3F]/30 selection:text-[#EDE6DD]">
+      <body className="min-h-full flex flex-col bg-[#171512] text-[#EDE6DD] selection:bg-[#A3E635]/30 selection:text-[#EDE6DD]">
         <ConvexClientProvider>
           <AuthProvider>
             <Navbar />

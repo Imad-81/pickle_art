@@ -34,7 +34,7 @@ export function HighlightBar() {
             onClick={handleOpenCreate}
             className="relative group p-0.5 rounded-full focus:outline-none"
           >
-            <div className="w-16 h-16 rounded-full bg-[#241F1B] border-2 border-dashed border-[#E08B3F]/60 group-hover:border-[#E08B3F] flex items-center justify-center transition-all group-hover:scale-105">
+            <div className="w-16 h-16 rounded-full bg-[#241F1B] border-2 border-dashed border-[#A3E635]/60 group-hover:border-[#A3E635] flex items-center justify-center transition-all group-hover:scale-105">
               {user ? (
                 <img
                   src={user.avatarUrl}
@@ -42,14 +42,14 @@ export function HighlightBar() {
                   className="w-14 h-14 rounded-full object-cover opacity-80 group-hover:opacity-100"
                 />
               ) : (
-                <div className="w-14 h-14 rounded-full bg-[#1C1A17] flex items-center justify-center text-[#E08B3F]">
+                <div className="w-14 h-14 rounded-full bg-[#1C1A17] flex items-center justify-center text-[#A3E635]">
                   <Sparkles className="w-6 h-6" />
                 </div>
               )}
             </div>
 
             {/* Plus badge */}
-            <div className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-[#E08B3F] text-[#171512] flex items-center justify-center font-bold shadow-md border-2 border-[#171512]">
+            <div className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-[#A3E635] text-[#171512] flex items-center justify-center font-bold shadow-md border-2 border-[#171512]">
               <Plus className="w-3.5 h-3.5 stroke-[3]" />
             </div>
           </button>
@@ -72,7 +72,7 @@ export function HighlightBar() {
                   <div
                     className={`w-16 h-16 rounded-full p-[2.5px] ${
                       hasUnseen
-                        ? "bg-gradient-to-tr from-[#E08B3F] via-[#C97B84] to-[#386641] shadow-lg shadow-[#E08B3F]/20 animate-pulse"
+                        ? "bg-gradient-to-tr from-[#A3E635] via-[#C97B84] to-[#386641] shadow-lg shadow-[#A3E635]/20 animate-pulse"
                         : "bg-[#3D3630]"
                     }`}
                   >
@@ -84,7 +84,7 @@ export function HighlightBar() {
                   </div>
 
                   {/* 24h Pill */}
-                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 px-1.5 py-0.2 bg-[#171512] border border-[#E08B3F]/50 rounded-full text-[9px] font-mono text-[#E08B3F] tracking-tighter">
+                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 px-1.5 py-0.2 bg-[#171512] border border-[#A3E635]/50 rounded-full text-[9px] font-mono text-[#A3E635] tracking-tighter">
                     24h
                   </div>
                 </button>

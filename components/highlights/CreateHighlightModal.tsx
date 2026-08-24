@@ -104,7 +104,7 @@ export function CreateHighlightModal({
 
         {/* Header */}
         <div className="flex items-center gap-2 mb-4">
-          <div className="w-8 h-8 rounded-lg bg-[#E08B3F]/20 text-[#E08B3F] flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-[#A3E635]/20 text-[#A3E635] flex items-center justify-center">
             <Sparkles className="w-4 h-4" />
           </div>
           <div>
@@ -119,8 +119,8 @@ export function CreateHighlightModal({
           {/* File Picker / Preview */}
           <div
             onClick={() => fileInputRef.current?.click()}
-            className={`relative w-full h-56 rounded-xl border-2 border-dashed border-[#342D26] hover:border-[#E08B3F] bg-[#141210] flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden ${
-              previewUrl ? "border-solid border-[#E08B3F]/60" : ""
+            className={`relative w-full h-56 rounded-xl border-2 border-dashed border-[#342D26] hover:border-[#A3E635] bg-[#141210] flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden ${
+              previewUrl ? "border-solid border-[#A3E635]/60" : ""
             }`}
           >
             <input
@@ -141,7 +141,7 @@ export function CreateHighlightModal({
                 )}
                 {mediaType === "audio" && (
                   <div className="flex flex-col items-center gap-3 p-4">
-                    <Music className="w-12 h-12 text-[#E08B3F]" />
+                    <Music className="w-12 h-12 text-[#A3E635]" />
                     <span className="text-xs font-mono text-[#EDE6DD]">{file?.name}</span>
                     <audio src={previewUrl} controls className="w-64 mt-2" />
                   </div>
@@ -152,12 +152,12 @@ export function CreateHighlightModal({
               </div>
             ) : (
               <div className="flex flex-col items-center gap-2 p-6 text-center">
-                <div className="w-12 h-12 rounded-full bg-[#241F1B] border border-[#342D26] flex items-center justify-center text-[#E08B3F]">
+                <div className="w-12 h-12 rounded-full bg-[#241F1B] border border-[#342D26] flex items-center justify-center text-[#A3E635]">
                   <Upload className="w-5 h-5" />
                 </div>
                 <div className="text-sm font-medium text-[#EDE6DD]">Drop or click to upload media</div>
                 <div className="text-xs text-[#7E776F]">Supports Images, Videos (MP4/WebM), Audio snippets</div>
-                <div className="text-[10px] text-[#E08B3F] font-mono mt-1">
+                <div className="text-[10px] text-[#A3E635] font-mono mt-1">
                   ⚡ Auto-compressed in your browser
                 </div>
               </div>
@@ -174,7 +174,7 @@ export function CreateHighlightModal({
               onChange={(e) => setCaption(e.target.value)}
               placeholder="What experiment or decision are you exploring right now? (e.g. testing color contrast on cold press...)"
               rows={2}
-              className="w-full px-3.5 py-2.5 bg-[#141210] border border-[#2E2924] rounded-lg text-sm font-serif text-[#EDE6DD] placeholder-[#6E675F] focus:outline-none focus:border-[#E08B3F] transition-colors"
+              className="w-full px-3.5 py-2.5 bg-[#141210] border border-[#2E2924] rounded-lg text-sm font-serif text-[#EDE6DD] placeholder-[#6E675F] focus:outline-none focus:border-[#A3E635] transition-colors"
             />
           </div>
 
@@ -187,7 +187,7 @@ export function CreateHighlightModal({
               <select
                 value={selectedProjectId}
                 onChange={(e) => setSelectedProjectId(e.target.value)}
-                className="w-full px-3.5 py-2 bg-[#141210] border border-[#2E2924] rounded-lg text-xs font-sans text-[#EDE6DD] focus:outline-none focus:border-[#E08B3F]"
+                className="w-full px-3.5 py-2 bg-[#141210] border border-[#2E2924] rounded-lg text-xs font-sans text-[#EDE6DD] focus:outline-none focus:border-[#A3E635]"
               >
                 <option value="">No project linked (Standalone 24h WIP)</option>
                 {userProjects.map((p) => (
@@ -202,13 +202,13 @@ export function CreateHighlightModal({
           {/* Upload progress */}
           {isUploading && (
             <div className="space-y-1">
-              <div className="flex justify-between text-[11px] font-mono text-[#E08B3F]">
+              <div className="flex justify-between text-[11px] font-mono text-[#A3E635]">
                 <span>Compressing & uploading to S3...</span>
                 <span>{uploadProgress}%</span>
               </div>
               <div className="w-full h-1.5 bg-[#2A2521] rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-[#E08B3F] transition-all duration-300"
+                  className="h-full bg-[#A3E635] transition-all duration-300"
                   style={{ width: `${uploadProgress}%` }}
                 />
               </div>
@@ -228,7 +228,7 @@ export function CreateHighlightModal({
             <button
               type="submit"
               disabled={!file || isUploading}
-              className="px-5 py-2 bg-[#E08B3F] hover:bg-[#CA782F] disabled:opacity-50 text-[#171512] font-semibold text-xs rounded-xl transition-all shadow-md flex items-center gap-2"
+              className="px-5 py-2 bg-[#A3E635] hover:bg-[#65A30D] disabled:opacity-50 text-[#171512] font-semibold text-xs rounded-xl transition-all shadow-md flex items-center gap-2"
             >
               {isUploading ? (
                 <>

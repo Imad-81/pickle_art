@@ -204,7 +204,7 @@ export default defineSchema({
     description: v.string(),
     icon: v.string(), // icon name or glyph
     coverImage: v.string(),
-    colorCode: v.string(), // e.g. "#E08B3F"
+    colorCode: v.string(), // e.g. "#A3E635"
     memberCount: v.number(),
   }).index("by_slug", ["slug"]),
 

@@ -56,7 +56,7 @@ export function AuthModal() {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
       <div className="relative w-full max-w-md bg-[#1C1A17] border border-[#2E2924] rounded-2xl shadow-2xl p-6 sm:p-8 text-[#EDE6DD] overflow-hidden">
         {/* Decorative background glow */}
-        <div className="absolute -top-24 -right-24 w-48 h-48 bg-[#E08B3F]/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -top-24 -right-24 w-48 h-48 bg-[#A3E635]/15 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-[#386641]/15 rounded-full blur-3xl pointer-events-none" />
 
         {/* Close button */}
@@ -69,7 +69,7 @@ export function AuthModal() {
 
         {/* Brand Header */}
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-[#E08B3F] to-[#B5731C] text-[#171512] font-serif text-2xl font-bold shadow-lg mb-3">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-[#A3E635] to-[#4D7C0F] text-[#171512] font-serif text-2xl font-bold shadow-lg mb-3">
             p.
           </div>
           <h2 className="text-2xl font-serif font-medium tracking-tight">
@@ -137,7 +137,7 @@ export function AuthModal() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Aarohi Sen"
-                className="w-full px-3.5 py-2.5 bg-[#141210] border border-[#2E2924] rounded-lg text-sm text-[#EDE6DD] placeholder-[#6E675F] focus:outline-none focus:border-[#E08B3F] transition-colors"
+                className="w-full px-3.5 py-2.5 bg-[#141210] border border-[#2E2924] rounded-lg text-sm text-[#EDE6DD] placeholder-[#6E675F] focus:outline-none focus:border-[#A3E635] transition-colors"
               />
             </div>
           )}
@@ -152,7 +152,7 @@ export function AuthModal() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="creator@pickle.art"
               required
-              className="w-full px-3.5 py-2.5 bg-[#141210] border border-[#2E2924] rounded-lg text-sm text-[#EDE6DD] placeholder-[#6E675F] focus:outline-none focus:border-[#E08B3F] transition-colors"
+              className="w-full px-3.5 py-2.5 bg-[#141210] border border-[#2E2924] rounded-lg text-sm text-[#EDE6DD] placeholder-[#6E675F] focus:outline-none focus:border-[#A3E635] transition-colors"
             />
           </div>
 
@@ -166,14 +166,14 @@ export function AuthModal() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               required
-              className="w-full px-3.5 py-2.5 bg-[#141210] border border-[#2E2924] rounded-lg text-sm text-[#EDE6DD] placeholder-[#6E675F] focus:outline-none focus:border-[#E08B3F] transition-colors"
+              className="w-full px-3.5 py-2.5 bg-[#141210] border border-[#2E2924] rounded-lg text-sm text-[#EDE6DD] placeholder-[#6E675F] focus:outline-none focus:border-[#A3E635] transition-colors"
             />
           </div>
 
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-2.5 bg-[#E08B3F] hover:bg-[#CA782F] text-[#171512] font-semibold text-sm rounded-xl transition-all shadow-md active:scale-[0.99] flex items-center justify-center gap-2"
+            className="w-full py-2.5 bg-[#A3E635] hover:bg-[#65A30D] text-[#171512] font-semibold text-sm rounded-xl transition-all shadow-md active:scale-[0.99] flex items-center justify-center gap-2"
           >
             {mode === "login" ? "Sign In" : "Create Account"}
             <ArrowRight className="w-4 h-4" />
@@ -194,7 +194,7 @@ export function AuthModal() {
 
         {/* Demo Persona Switcher (For immediate testing) */}
         <div className="mt-6 pt-4 border-t border-[#2E2924]">
-          <div className="flex items-center gap-1.5 text-xs text-[#E08B3F] font-mono mb-2.5">
+          <div className="flex items-center gap-1.5 text-xs text-[#A3E635] font-mono mb-2.5">
             <Sparkles className="w-3.5 h-3.5" />
             <span>INSTANT TEST PERSONAS</span>
           </div>
@@ -210,7 +210,7 @@ export function AuthModal() {
                   }}
                   className={`flex items-center gap-2 p-2 rounded-lg text-left transition-all border ${
                     isCurrent
-                      ? "bg-[#2A2521] border-[#E08B3F] text-[#EDE6DD]"
+                      ? "bg-[#2A2521] border-[#A3E635] text-[#EDE6DD]"
                       : "bg-[#141210] border-[#26221E] text-[#9E978E] hover:text-[#EDE6DD] hover:bg-[#1E1B18]"
                   }`}
                 >
@@ -222,7 +222,7 @@ export function AuthModal() {
                   <div className="truncate">
                     <div className="text-xs font-medium truncate flex items-center gap-1">
                       {p.name}
-                      {isCurrent && <UserCheck className="w-3 h-3 text-[#E08B3F]" />}
+                      {isCurrent && <UserCheck className="w-3 h-3 text-[#A3E635]" />}
                     </div>
                     <div className="text-[10px] text-[#7E776F] font-mono">
                       @{p.username}

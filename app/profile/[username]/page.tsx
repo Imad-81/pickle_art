@@ -81,7 +81,7 @@ export default function ProfilePage() {
             <img
               src={profileUser.avatarUrl}
               alt={profileUser.name}
-              className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-4 border-[#E08B3F] shadow-xl"
+              className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-4 border-[#A3E635] shadow-xl"
             />
             <div className="space-y-1">
               <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#EDE6DD]">
@@ -91,7 +91,7 @@ export default function ProfilePage() {
                 @{profileUser.username}
               </div>
               <div className="flex items-center gap-1.5 pt-1">
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono bg-[#E08B3F]/20 text-[#E08B3F] border border-[#E08B3F]/40 font-semibold">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono bg-[#A3E635]/20 text-[#A3E635] border border-[#A3E635]/40 font-semibold">
                   {profileUser.growthPoints || 50} craft pts
                 </span>
               </div>
@@ -106,7 +106,7 @@ export default function ProfilePage() {
                 className={`px-6 py-2.5 rounded-xl text-xs font-semibold font-mono flex items-center gap-2 transition-all shadow-md ${
                   isFollowing
                     ? "bg-[#241F1B] text-[#8A837A] border border-[#3E3832]"
-                    : "bg-[#E08B3F] text-[#171512] hover:bg-[#CA782F]"
+                    : "bg-[#A3E635] text-[#171512] hover:bg-[#65A30D]"
                 }`}
               >
                 {isFollowing ? (
@@ -124,7 +124,7 @@ export default function ProfilePage() {
             ) : (
               <Link
                 href="/project/create"
-                className="px-5 py-2.5 bg-[#E08B3F] hover:bg-[#CA782F] text-[#171512] font-semibold text-xs rounded-xl shadow-md transition-all inline-block"
+                className="px-5 py-2.5 bg-[#A3E635] hover:bg-[#65A30D] text-[#171512] font-semibold text-xs rounded-xl shadow-md transition-all inline-block"
               >
                 + New Project
               </Link>
@@ -169,7 +169,7 @@ export default function ProfilePage() {
               onClick={() => setActiveTab("all")}
               className={`px-3.5 py-1.5 rounded-lg text-xs font-mono transition-all ${
                 activeTab === "all"
-                  ? "bg-[#2A2521] text-[#E08B3F] font-semibold border border-[#3E3832]"
+                  ? "bg-[#2A2521] text-[#A3E635] font-semibold border border-[#3E3832]"
                   : "text-[#8A837A] hover:text-[#EDE6DD]"
               }`}
             >
@@ -179,7 +179,7 @@ export default function ProfilePage() {
               onClick={() => setActiveTab("in_progress")}
               className={`px-3.5 py-1.5 rounded-lg text-xs font-mono transition-all ${
                 activeTab === "in_progress"
-                  ? "bg-[#2A2521] text-[#E08B3F] font-semibold border border-[#3E3832]"
+                  ? "bg-[#2A2521] text-[#A3E635] font-semibold border border-[#3E3832]"
                   : "text-[#8A837A] hover:text-[#EDE6DD]"
               }`}
             >
@@ -189,7 +189,7 @@ export default function ProfilePage() {
               onClick={() => setActiveTab("complete")}
               className={`px-3.5 py-1.5 rounded-lg text-xs font-mono transition-all ${
                 activeTab === "complete"
-                  ? "bg-[#2A2521] text-[#E08B3F] font-semibold border border-[#3E3832]"
+                  ? "bg-[#2A2521] text-[#A3E635] font-semibold border border-[#3E3832]"
                   : "text-[#8A837A] hover:text-[#EDE6DD]"
               }`}
             >

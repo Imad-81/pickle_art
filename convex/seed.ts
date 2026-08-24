@@ -19,7 +19,7 @@ export const seedDatabase = mutation({
         description: "Tactile materials, unboxing structures, die-cuts, and sustainable packaging craft.",
         icon: "Package",
         coverImage: "https://images.unsplash.com/photo-1589939705384-5185137a7f0f?q=80&w=800&auto=format&fit=crop",
-        colorCode: "#E08B3F",
+        colorCode: "#A3E635",
         memberCount: 1420,
       },
       {
@@ -46,7 +46,7 @@ export const seedDatabase = mutation({
         description: "Joinery, ergonomic mockups, timber grain, and physical form studies.",
         icon: "Layers",
         coverImage: "https://images.unsplash.com/photo-1538688525198-9b88f6f53126?q=80&w=800&auto=format&fit=crop",
-        colorCode: "#B5731C",
+        colorCode: "#4D7C0F",
         memberCount: 860,
       },
       {

@@ -37,7 +37,7 @@ function DiscoverContent() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-8 animate-fade-in">
       {/* Header */}
       <div className="space-y-4">
-        <div className="flex items-center gap-2 text-xs font-mono text-[#E08B3F]">
+        <div className="flex items-center gap-2 text-xs font-mono text-[#A3E635]">
           <Compass className="w-4 h-4" />
           <span>DISCOVER & SEARCH</span>
         </div>
@@ -57,7 +57,7 @@ function DiscoverContent() {
           value={queryText}
           onChange={(e) => setQueryText(e.target.value)}
           placeholder="Search by keywords (e.g. unboxing, joinery, botanical, kraft)..."
-          className="w-full bg-[#1C1A17] border border-[#2E2924] focus:border-[#E08B3F] text-sm text-[#EDE6DD] placeholder-[#6E675F] rounded-2xl pl-12 pr-10 py-3.5 focus:outline-none shadow-xl transition-all"
+          className="w-full bg-[#1C1A17] border border-[#2E2924] focus:border-[#A3E635] text-sm text-[#EDE6DD] placeholder-[#6E675F] rounded-2xl pl-12 pr-10 py-3.5 focus:outline-none shadow-xl transition-all"
         />
         {queryText && (
           <button
@@ -80,7 +80,7 @@ function DiscoverContent() {
               onClick={() => setSelectedChannel("")}
               className={`px-3.5 py-1.5 rounded-full text-xs font-mono transition-all border shrink-0 ${
                 !selectedChannel
-                  ? "bg-[#E08B3F] text-[#171512] border-[#E08B3F] font-semibold"
+                  ? "bg-[#A3E635] text-[#171512] border-[#A3E635] font-semibold"
                   : "bg-[#1C1A17] text-[#8A837A] border-[#2E2924] hover:text-[#EDE6DD]"
               }`}
             >
@@ -94,7 +94,7 @@ function DiscoverContent() {
                   onClick={() => setSelectedChannel(isSelected ? "" : ch.slug)}
                   className={`px-3.5 py-1.5 rounded-full text-xs font-mono transition-all border shrink-0 ${
                     isSelected
-                      ? "bg-[#2A2521] text-[#E08B3F] border-[#E08B3F] font-semibold"
+                      ? "bg-[#2A2521] text-[#A3E635] border-[#A3E635] font-semibold"
                       : "bg-[#1C1A17] text-[#8A837A] border-[#2E2924] hover:text-[#EDE6DD]"
                   }`}
                 >
@@ -143,7 +143,7 @@ function DiscoverContent() {
             </span>
           )}
           {selectedChannel && (
-            <span className="px-2.5 py-0.5 rounded-md bg-[#241F1B] border border-[#3E3832] text-xs font-mono text-[#E08B3F]">
+            <span className="px-2.5 py-0.5 rounded-md bg-[#241F1B] border border-[#3E3832] text-xs font-mono text-[#A3E635]">
               Channel: #{selectedChannel}
             </span>
           )}
@@ -177,7 +177,7 @@ function DiscoverContent() {
           </div>
         ) : (
           <div className="p-16 text-center bg-[#1C1A17] border border-[#2E2924] rounded-2xl space-y-3">
-            <Sparkles className="w-8 h-8 text-[#E08B3F] mx-auto" />
+            <Sparkles className="w-8 h-8 text-[#A3E635] mx-auto" />
             <h3 className="text-base font-serif font-medium text-[#EDE6DD]">
               No Projects Found Matching Search Criteria
             </h3>

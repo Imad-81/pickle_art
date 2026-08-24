@@ -79,7 +79,7 @@ export function GrowthTrailChart({
       particleCount: 40,
       spread: 60,
       origin: { y: 0.7 },
-      colors: ["#E08B3F", "#B5731C", "#386641", "#EDE6DD"],
+      colors: ["#A3E635", "#4D7C0F", "#386641", "#EDE6DD"],
     });
   };
 
@@ -114,7 +114,7 @@ export function GrowthTrailChart({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <div className="flex items-center gap-1.5 text-xs font-mono text-[#E08B3F] mb-0.5">
+          <div className="flex items-center gap-1.5 text-xs font-mono text-[#A3E635] mb-0.5">
             <Trophy className="w-3.5 h-3.5" />
             <span>GROWTH TRAIL & CRAFT TIMELINE</span>
           </div>
@@ -123,9 +123,9 @@ export function GrowthTrailChart({
           </h3>
         </div>
 
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-[#241F1B] border border-[#E08B3F]/40 rounded-xl">
-          <Sparkles className="w-4 h-4 text-[#E08B3F]" />
-          <span className="text-xs font-mono font-bold text-[#E08B3F]">
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-[#241F1B] border border-[#A3E635]/40 rounded-xl">
+          <Sparkles className="w-4 h-4 text-[#A3E635]" />
+          <span className="text-xs font-mono font-bold text-[#A3E635]">
             {growthPoints} craft points
           </span>
         </div>
@@ -137,8 +137,8 @@ export function GrowthTrailChart({
           {/* Gradient Fill */}
           <defs>
             <linearGradient id="growthGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#E08B3F" stopOpacity="0.35" />
-              <stop offset="100%" stopColor="#E08B3F" stopOpacity="0.0" />
+              <stop offset="0%" stopColor="#A3E635" stopOpacity="0.35" />
+              <stop offset="100%" stopColor="#A3E635" stopOpacity="0.0" />
             </linearGradient>
           </defs>
 
@@ -149,7 +149,7 @@ export function GrowthTrailChart({
           <path
             d={pathD}
             fill="none"
-            stroke="#E08B3F"
+            stroke="#A3E635"
             strokeWidth="3"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -164,13 +164,13 @@ export function GrowthTrailChart({
                   cx={p.x}
                   cy={p.y}
                   r={isSelected ? "7" : "5"}
-                  className="transition-all fill-[#171512] stroke-[#E08B3F] stroke-[2.5]"
+                  className="transition-all fill-[#171512] stroke-[#A3E635] stroke-[2.5]"
                 />
                 <circle
                   cx={p.x}
                   cy={p.y}
                   r={isSelected ? "4" : "2.5"}
-                  className="fill-[#E08B3F]"
+                  className="fill-[#A3E635]"
                 />
                 <text
                   x={p.x}
@@ -188,9 +188,9 @@ export function GrowthTrailChart({
 
       {/* Selected Milestone Detail Box */}
       {selectedMilestone ? (
-        <div className="p-4 bg-[#241F1B] border border-[#E08B3F]/40 rounded-xl flex items-start justify-between gap-4 animate-fade-in">
+        <div className="p-4 bg-[#241F1B] border border-[#A3E635]/40 rounded-xl flex items-start justify-between gap-4 animate-fade-in">
           <div>
-            <div className="flex items-center gap-2 text-xs font-mono text-[#E08B3F]">
+            <div className="flex items-center gap-2 text-xs font-mono text-[#A3E635]">
               <Award className="w-3.5 h-3.5" />
               <span>{selectedMilestone.date} · +{selectedMilestone.points} pts</span>
             </div>

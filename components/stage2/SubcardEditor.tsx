@@ -5,6 +5,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { uploadMedia } from "@/lib/uploader";
+import { resolveMediaUrl } from "@/lib/media";
 import {
   Plus,
   Sparkles,
@@ -125,7 +126,7 @@ export function SubcardEditor({
       {/* Stage Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-[#1C1A17] border border-[#2E2924] rounded-2xl">
         <div>
-          <div className="flex items-center gap-2 text-xs font-mono text-[#E08B3F] mb-1">
+          <div className="flex items-center gap-2 text-xs font-mono text-[#A3E635] mb-1">
             <Sparkles className="w-3.5 h-3.5" />
             <span>STAGE 2: DEVELOPMENT & EXPERIMENTS</span>
           </div>
@@ -141,7 +142,7 @@ export function SubcardEditor({
           {isEditable && (
             <button
               onClick={() => setIsAddingSubcard(true)}
-              className="flex items-center gap-1.5 px-4 py-2 bg-[#E08B3F] hover:bg-[#CA782F] text-[#171512] font-semibold text-xs rounded-xl transition-all shadow-md active:scale-95"
+              className="flex items-center gap-1.5 px-4 py-2 bg-[#A3E635] hover:bg-[#65A30D] text-[#171512] font-semibold text-xs rounded-xl transition-all shadow-md active:scale-95"
             >
               <Plus className="w-4 h-4" />
               <span>Add Experiment</span>
@@ -163,7 +164,7 @@ export function SubcardEditor({
       {isAddingSubcard && (
         <form
           onSubmit={handleCreateSubcard}
-          className="p-6 bg-[#1C1A17] border border-[#E08B3F]/50 rounded-2xl space-y-4 animate-fade-in shadow-2xl"
+          className="p-6 bg-[#1C1A17] border border-[#A3E635]/50 rounded-2xl space-y-4 animate-fade-in shadow-2xl"
         >
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-[#EDE6DD] font-mono">
@@ -188,7 +189,7 @@ export function SubcardEditor({
               onChange={(e) => setNewTitle(e.target.value)}
               placeholder="e.g. Iteration 02 — Laser Cut Crease & Score Tests"
               required
-              className="w-full px-3.5 py-2.5 bg-[#141210] border border-[#2E2924] rounded-lg text-sm text-[#EDE6DD] placeholder-[#6E675F] focus:outline-none focus:border-[#E08B3F]"
+              className="w-full px-3.5 py-2.5 bg-[#141210] border border-[#2E2924] rounded-lg text-sm text-[#EDE6DD] placeholder-[#6E675F] focus:outline-none focus:border-[#A3E635]"
             />
           </div>
 
@@ -201,7 +202,7 @@ export function SubcardEditor({
               onChange={(e) => setNewNotes(e.target.value)}
               placeholder="Describe what hypothesis you were testing, what failed, and what you learned..."
               rows={3}
-              className="w-full px-3.5 py-2.5 bg-[#141210] border border-[#2E2924] rounded-lg text-sm font-serif text-[#EDE6DD] placeholder-[#6E675F] focus:outline-none focus:border-[#E08B3F]"
+              className="w-full px-3.5 py-2.5 bg-[#141210] border border-[#2E2924] rounded-lg text-sm font-serif text-[#EDE6DD] placeholder-[#6E675F] focus:outline-none focus:border-[#A3E635]"
             />
           </div>
 
@@ -212,7 +213,7 @@ export function SubcardEditor({
             </label>
             <div
               onClick={() => fileInputRef.current?.click()}
-              className="p-4 border border-dashed border-[#342D26] hover:border-[#E08B3F] rounded-xl bg-[#141210] text-center cursor-pointer transition-colors"
+              className="p-4 border border-dashed border-[#342D26] hover:border-[#A3E635] rounded-xl bg-[#141210] text-center cursor-pointer transition-colors"
             >
               <input
                 ref={fileInputRef}
@@ -222,7 +223,7 @@ export function SubcardEditor({
                 onChange={(e) => setNewFiles(Array.from(e.target.files || []))}
                 className="hidden"
               />
-              <Upload className="w-5 h-5 text-[#E08B3F] mx-auto mb-1" />
+              <Upload className="w-5 h-5 text-[#A3E635] mx-auto mb-1" />
               <span className="text-xs text-[#EDE6DD]">
                 {newFiles.length > 0
                   ? `${newFiles.length} file(s) selected`
@@ -238,7 +239,7 @@ export function SubcardEditor({
                 type="checkbox"
                 checked={enablePoll}
                 onChange={(e) => setEnablePoll(e.target.checked)}
-                className="rounded accent-[#E08B3F]"
+                className="rounded accent-[#A3E635]"
               />
               <span>Open a Community Decision Poll for this experiment</span>
             </label>
@@ -250,7 +251,7 @@ export function SubcardEditor({
                   value={pollQuestion}
                   onChange={(e) => setPollQuestion(e.target.value)}
                   placeholder="Decision question (e.g. Which bevel angle fits best?)"
-                  className="w-full px-3 py-2 bg-[#1C1A17] border border-[#342D26] rounded-lg text-xs text-[#EDE6DD] focus:outline-none focus:border-[#E08B3F]"
+                  className="w-full px-3 py-2 bg-[#1C1A17] border border-[#342D26] rounded-lg text-xs text-[#EDE6DD] focus:outline-none focus:border-[#A3E635]"
                 />
                 <input
                   type="text"
@@ -288,7 +289,7 @@ export function SubcardEditor({
             <button
               type="submit"
               disabled={isUploading}
-              className="px-5 py-2 bg-[#E08B3F] hover:bg-[#CA782F] text-[#171512] font-semibold text-xs rounded-xl flex items-center gap-2"
+              className="px-5 py-2 bg-[#A3E635] hover:bg-[#65A30D] text-[#171512] font-semibold text-xs rounded-xl flex items-center gap-2"
             >
               {isUploading ? (
                 <>
@@ -307,7 +308,7 @@ export function SubcardEditor({
       <div className="space-y-6">
         {subcards && subcards.length === 0 && !isAddingSubcard && (
           <div className="p-12 text-center bg-[#1C1A17] border border-dashed border-[#2E2924] rounded-2xl">
-            <Sparkles className="w-8 h-8 text-[#E08B3F] mx-auto mb-3" />
+            <Sparkles className="w-8 h-8 text-[#A3E635] mx-auto mb-3" />
             <h3 className="text-base font-serif font-medium text-[#EDE6DD]">
               No Experiments Documented Yet
             </h3>
@@ -317,7 +318,7 @@ export function SubcardEditor({
             {isEditable && (
               <button
                 onClick={() => setIsAddingSubcard(true)}
-                className="px-4 py-2 bg-[#E08B3F] text-[#171512] font-semibold text-xs rounded-xl"
+                className="px-4 py-2 bg-[#A3E635] text-[#171512] font-semibold text-xs rounded-xl"
               >
                 Add First Experiment Post
               </button>
@@ -335,7 +336,7 @@ export function SubcardEditor({
                 {/* Header */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-[#E08B3F]/20 text-[#E08B3F] font-mono text-xs flex items-center justify-center font-bold">
+                    <span className="w-6 h-6 rounded-full bg-[#A3E635]/20 text-[#A3E635] font-mono text-xs flex items-center justify-center font-bold">
                       {idx + 1}
                     </span>
                     <h3 className="text-lg font-serif font-semibold text-[#EDE6DD]">
@@ -370,13 +371,13 @@ export function SubcardEditor({
                       >
                         {media.type === "image" && (
                           <img
-                            src={media.url}
+                            src={resolveMediaUrl(media.url)}
                             alt={media.caption || "Experiment media"}
                             className="w-full h-56 object-cover"
                           />
                         )}
                         {media.type === "video" && (
-                          <video src={media.url} controls className="w-full h-56 object-cover" />
+                          <video src={resolveMediaUrl(media.url)} controls className="w-full h-56 object-cover" />
                         )}
                         {media.caption && (
                           <div className="p-2 text-[11px] font-mono text-[#8A837A] bg-[#171512]">
@@ -391,7 +392,7 @@ export function SubcardEditor({
                 {/* Interactive Community Poll / Decision */}
                 {card.poll && card.poll.options && (
                   <div className="mt-4 p-4 bg-[#241F1B] rounded-xl border border-[#3E3832] space-y-3">
-                    <div className="flex items-center gap-2 text-xs font-mono text-[#E08B3F]">
+                    <div className="flex items-center gap-2 text-xs font-mono text-[#A3E635]">
                       <Vote className="w-4 h-4" />
                       <span className="font-semibold">COMMUNITY DECISION POLL</span>
                     </div>
@@ -416,22 +417,22 @@ export function SubcardEditor({
                             onClick={() => handleVote(card._id, opt.id)}
                             className={`w-full relative overflow-hidden text-left p-3 rounded-lg border transition-all ${
                               hasVoted
-                                ? "border-[#E08B3F] bg-[#E08B3F]/10 text-[#EDE6DD]"
+                                ? "border-[#A3E635] bg-[#A3E635]/10 text-[#EDE6DD]"
                                 : "border-[#342D26] bg-[#1C1A17] hover:border-[#4E443A] text-[#9E978E]"
                             }`}
                           >
                             {/* Percentage Bar */}
                             <div
-                              className="absolute left-0 top-0 bottom-0 bg-[#E08B3F]/20 transition-all duration-500"
+                              className="absolute left-0 top-0 bottom-0 bg-[#A3E635]/20 transition-all duration-500"
                               style={{ width: `${percentage}%` }}
                             />
 
                             <div className="relative flex items-center justify-between z-10 text-xs">
                               <span className="font-medium text-[#EDE6DD] flex items-center gap-2">
-                                {hasVoted && <CheckCircle2 className="w-3.5 h-3.5 text-[#E08B3F]" />}
+                                {hasVoted && <CheckCircle2 className="w-3.5 h-3.5 text-[#A3E635]" />}
                                 {opt.text}
                               </span>
-                              <span className="font-mono text-[#E08B3F] font-semibold">
+                              <span className="font-mono text-[#A3E635] font-semibold">
                                 {percentage}% ({optVotes})
                               </span>
                             </div>

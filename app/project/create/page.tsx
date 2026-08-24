@@ -124,7 +124,7 @@ export default function CreateProjectPage() {
 
         {/* Header */}
         <div className="p-6 bg-[#1C1A17] border border-[#2E2924] rounded-2xl space-y-1 shadow-xl">
-          <div className="flex items-center gap-2 text-xs font-mono text-[#E08B3F]">
+          <div className="flex items-center gap-2 text-xs font-mono text-[#A3E635]">
             <Sparkles className="w-3.5 h-3.5" />
             <span>START A NEW CRAFT LOG</span>
           </div>
@@ -145,7 +145,7 @@ export default function CreateProjectPage() {
             </label>
             <div
               onClick={() => fileInputRef.current?.click()}
-              className="relative w-full h-48 rounded-xl border-2 border-dashed border-[#342D26] hover:border-[#E08B3F] bg-[#141210] flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden"
+              className="relative w-full h-48 rounded-xl border-2 border-dashed border-[#342D26] hover:border-[#A3E635] bg-[#141210] flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden"
             >
               <input
                 ref={fileInputRef}
@@ -163,7 +163,7 @@ export default function CreateProjectPage() {
                 </div>
               ) : (
                 <div className="text-center p-6 space-y-2">
-                  <Upload className="w-8 h-8 text-[#E08B3F] mx-auto" />
+                  <Upload className="w-8 h-8 text-[#A3E635] mx-auto" />
                   <div className="text-xs font-medium text-[#EDE6DD]">
                     Click to upload high-res cover image
                   </div>
@@ -186,7 +186,7 @@ export default function CreateProjectPage() {
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Modular Kraft Packaging Suite"
               required
-              className="w-full px-3.5 py-2.5 bg-[#141210] border border-[#2E2924] rounded-lg text-sm text-[#EDE6DD] placeholder-[#6E675F] focus:outline-none focus:border-[#E08B3F]"
+              className="w-full px-3.5 py-2.5 bg-[#141210] border border-[#2E2924] rounded-lg text-sm text-[#EDE6DD] placeholder-[#6E675F] focus:outline-none focus:border-[#A3E635]"
             />
           </div>
 
@@ -201,7 +201,7 @@ export default function CreateProjectPage() {
               placeholder="What are you creating and why does the process matter?"
               rows={3}
               required
-              className="w-full px-3.5 py-2.5 bg-[#141210] border border-[#2E2924] rounded-lg text-sm font-serif text-[#EDE6DD] placeholder-[#6E675F] focus:outline-none focus:border-[#E08B3F]"
+              className="w-full px-3.5 py-2.5 bg-[#141210] border border-[#2E2924] rounded-lg text-sm font-serif text-[#EDE6DD] placeholder-[#6E675F] focus:outline-none focus:border-[#A3E635]"
             />
           </div>
 
@@ -215,7 +215,7 @@ export default function CreateProjectPage() {
               onChange={(e) => setGoals(e.target.value)}
               placeholder="e.g. Eliminate adhesives, withstand drop tests, achieve tactile unboxing..."
               rows={2}
-              className="w-full px-3.5 py-2.5 bg-[#141210] border border-[#2E2924] rounded-lg text-sm font-serif text-[#EDE6DD] placeholder-[#6E675F] focus:outline-none focus:border-[#E08B3F]"
+              className="w-full px-3.5 py-2.5 bg-[#141210] border border-[#2E2924] rounded-lg text-sm font-serif text-[#EDE6DD] placeholder-[#6E675F] focus:outline-none focus:border-[#A3E635]"
             />
           </div>
 
@@ -227,7 +227,7 @@ export default function CreateProjectPage() {
             <select
               value={discipline}
               onChange={(e) => setDiscipline(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-[#141210] border border-[#2E2924] rounded-lg text-xs font-sans text-[#EDE6DD] focus:outline-none focus:border-[#E08B3F]"
+              className="w-full px-3.5 py-2.5 bg-[#141210] border border-[#2E2924] rounded-lg text-xs font-sans text-[#EDE6DD] focus:outline-none focus:border-[#A3E635]"
             >
               {DISCIPLINES.map((d) => (
                 <option key={d} value={d}>
@@ -247,7 +247,7 @@ export default function CreateProjectPage() {
               value={tagsInput}
               onChange={(e) => setTagsInput(e.target.value)}
               placeholder="#packaging, #branding, #kraft, #sustainable"
-              className="w-full px-3.5 py-2.5 bg-[#141210] border border-[#2E2924] rounded-lg text-xs font-mono text-[#EDE6DD] placeholder-[#6E675F] focus:outline-none focus:border-[#E08B3F]"
+              className="w-full px-3.5 py-2.5 bg-[#141210] border border-[#2E2924] rounded-lg text-xs font-mono text-[#EDE6DD] placeholder-[#6E675F] focus:outline-none focus:border-[#A3E635]"
             />
           </div>
 
@@ -261,7 +261,7 @@ export default function CreateProjectPage() {
               value={toolsInput}
               onChange={(e) => setToolsInput(e.target.value)}
               placeholder="Illustrator, Laser Cutter, Blender, Physical Prototyping"
-              className="w-full px-3.5 py-2.5 bg-[#141210] border border-[#2E2924] rounded-lg text-xs font-mono text-[#EDE6DD] placeholder-[#6E675F] focus:outline-none focus:border-[#E08B3F]"
+              className="w-full px-3.5 py-2.5 bg-[#141210] border border-[#2E2924] rounded-lg text-xs font-mono text-[#EDE6DD] placeholder-[#6E675F] focus:outline-none focus:border-[#A3E635]"
             />
           </div>
 
@@ -272,7 +272,7 @@ export default function CreateProjectPage() {
                 type="checkbox"
                 checked={isExemptPhotography}
                 onChange={(e) => setIsExemptPhotography(e.target.checked)}
-                className="rounded accent-[#E08B3F]"
+                className="rounded accent-[#A3E635]"
               />
               <span>Single-shot / Photography Exemption (Skip stage gating)</span>
             </label>
@@ -283,7 +283,7 @@ export default function CreateProjectPage() {
             <button
               type="submit"
               disabled={isCreating}
-              className="px-6 py-3 bg-[#E08B3F] hover:bg-[#CA782F] disabled:opacity-50 text-[#171512] font-semibold text-xs rounded-xl shadow-lg transition-all flex items-center gap-2 active:scale-95"
+              className="px-6 py-3 bg-[#A3E635] hover:bg-[#65A30D] disabled:opacity-50 text-[#171512] font-semibold text-xs rounded-xl shadow-lg transition-all flex items-center gap-2 active:scale-95"
             >
               {isCreating ? (
                 <>

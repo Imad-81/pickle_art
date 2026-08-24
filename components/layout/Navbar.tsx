@@ -24,11 +24,11 @@ export function Navbar() {
       {/* Brand */}
       <div className="flex items-center gap-6">
         <Link href="/" className="flex items-center gap-2 group">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#E08B3F] to-[#B5731C] text-[#171512] font-serif font-bold text-lg flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#A3E635] to-[#4D7C0F] text-[#171512] font-serif font-bold text-lg flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
             p.
           </div>
           <span className="text-xl font-serif font-bold tracking-tight text-[#EDE6DD]">
-            pickle<span className="text-[#E08B3F]">.</span>
+            pickle<span className="text-[#A3E635]">.</span>
           </span>
         </Link>
 
@@ -47,7 +47,7 @@ export function Navbar() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by keyword, #hashtag, discipline..."
-            className="w-full bg-[#221E1A] hover:bg-[#28231E] focus:bg-[#1C1916] text-[#EDE6DD] placeholder-[#6E675F] text-xs font-sans rounded-full pl-10 pr-4 py-2 border border-[#342D26] focus:border-[#E08B3F] focus:outline-none transition-all"
+            className="w-full bg-[#221E1A] hover:bg-[#28231E] focus:bg-[#1C1916] text-[#EDE6DD] placeholder-[#6E675F] text-xs font-sans rounded-full pl-10 pr-4 py-2 border border-[#342D26] focus:border-[#A3E635] focus:outline-none transition-all"
           />
         </div>
       </form>
@@ -57,7 +57,7 @@ export function Navbar() {
         {/* Create Project Button */}
         <Link
           href="/project/create"
-          className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#E08B3F] hover:bg-[#CA782F] text-[#171512] text-xs font-semibold font-sans shadow-sm transition-all active:scale-[0.98]"
+          className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#A3E635] hover:bg-[#65A30D] text-[#171512] text-xs font-semibold font-sans shadow-sm transition-all active:scale-[0.98]"
         >
           <Plus className="w-4 h-4" />
           <span>New Project</span>
@@ -76,7 +76,7 @@ export function Navbar() {
               <img
                 src={user.avatarUrl}
                 alt={user.name}
-                className="w-7 h-7 rounded-full object-cover border border-[#E08B3F]/40"
+                className="w-7 h-7 rounded-full object-cover border border-[#A3E635]/40"
               />
               <ChevronDown className="w-3.5 h-3.5 text-[#7E776F] mr-1" />
             </button>
@@ -90,7 +90,7 @@ export function Navbar() {
                 <div className="px-3.5 py-2 border-b border-[#2E2924]">
                   <div className="text-xs font-medium text-[#EDE6DD]">{user.name}</div>
                   <div className="text-[10px] text-[#7E776F] font-mono">@{user.username}</div>
-                  <div className="mt-1 text-[10px] text-[#E08B3F] font-mono flex items-center gap-1">
+                  <div className="mt-1 text-[10px] text-[#A3E635] font-mono flex items-center gap-1">
                     <Sparkles className="w-3 h-3" />
                     <span>{user.growthPoints || 50} craft pts</span>
                   </div>
@@ -118,7 +118,7 @@ export function Navbar() {
                       setProfileMenuOpen(false);
                       openAuthModal();
                     }}
-                    className="w-full flex items-center gap-2 px-3.5 py-2 text-xs text-[#E08B3F] hover:bg-[#2A2521] transition-colors text-left"
+                    className="w-full flex items-center gap-2 px-3.5 py-2 text-xs text-[#A3E635] hover:bg-[#2A2521] transition-colors text-left"
                   >
                     <Sparkles className="w-4 h-4" />
                     <span>Switch Test Persona</span>
@@ -145,7 +145,7 @@ export function Navbar() {
             onClick={openAuthModal}
             className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#2A2521] hover:bg-[#342E29] border border-[#3E3832] text-xs font-medium text-[#EDE6DD] rounded-full transition-all"
           >
-            <LogIn className="w-3.5 h-3.5 text-[#E08B3F]" />
+            <LogIn className="w-3.5 h-3.5 text-[#A3E635]" />
             <span>Sign In</span>
           </button>
         )}

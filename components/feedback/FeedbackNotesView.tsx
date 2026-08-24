@@ -37,7 +37,7 @@ export function FeedbackNotesView() {
   if (!user) {
     return (
       <div className="p-12 text-center bg-[#1C1A17] border border-[#2E2924] rounded-2xl max-w-md mx-auto my-12 space-y-4">
-        <BookOpen className="w-10 h-10 text-[#E08B3F] mx-auto" />
+        <BookOpen className="w-10 h-10 text-[#A3E635] mx-auto" />
         <h3 className="text-lg font-serif font-medium text-[#EDE6DD]">
           Personal Feedback Notebook
         </h3>
@@ -53,7 +53,7 @@ export function FeedbackNotesView() {
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 bg-[#1C1A17] border border-[#2E2924] rounded-2xl shadow-xl">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#E08B3F]/20 text-[#E08B3F] flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-[#A3E635]/20 text-[#A3E635] flex items-center justify-center">
             <BookOpen className="w-5 h-5" />
           </div>
           <div>
@@ -72,7 +72,7 @@ export function FeedbackNotesView() {
             onClick={() => setActiveScreen("screen1")}
             className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-all ${
               activeScreen === "screen1"
-                ? "bg-[#2A2521] text-[#E08B3F] font-semibold border border-[#3E3832]"
+                ? "bg-[#2A2521] text-[#A3E635] font-semibold border border-[#3E3832]"
                 : "text-[#8A837A] hover:text-[#EDE6DD]"
             }`}
           >
@@ -82,7 +82,7 @@ export function FeedbackNotesView() {
             onClick={() => setActiveScreen("screen2")}
             className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-all ${
               activeScreen === "screen2"
-                ? "bg-[#2A2521] text-[#E08B3F] font-semibold border border-[#3E3832]"
+                ? "bg-[#2A2521] text-[#A3E635] font-semibold border border-[#3E3832]"
                 : "text-[#8A837A] hover:text-[#EDE6DD]"
             }`}
           >
@@ -97,7 +97,7 @@ export function FeedbackNotesView() {
           onClick={() => setFilterStatus("all")}
           className={`px-3.5 py-1.5 rounded-full text-xs font-mono transition-all border ${
             filterStatus === "all"
-              ? "bg-[#E08B3F] text-[#171512] border-[#E08B3F] font-semibold"
+              ? "bg-[#A3E635] text-[#171512] border-[#A3E635] font-semibold"
               : "bg-[#1C1A17] text-[#8A837A] border-[#2E2924] hover:text-[#EDE6DD]"
           }`}
         >
@@ -107,7 +107,7 @@ export function FeedbackNotesView() {
           onClick={() => setFilterStatus("todo")}
           className={`px-3.5 py-1.5 rounded-full text-xs font-mono transition-all border ${
             filterStatus === "todo"
-              ? "bg-amber-600 text-white border-amber-600 font-semibold"
+              ? "bg-lime-600 text-white border-lime-600 font-semibold"
               : "bg-[#1C1A17] text-[#8A837A] border-[#2E2924] hover:text-[#EDE6DD]"
           }`}
         >
@@ -169,7 +169,7 @@ export function FeedbackNotesView() {
                           <div className="font-semibold text-[#EDE6DD] font-serif truncate">
                             {note.projectTitle}
                           </div>
-                          <span className="inline-block mt-1 px-2 py-0.5 rounded-md text-[10px] font-mono bg-[#2A2521] text-[#E08B3F] border border-[#3E3832] uppercase">
+                          <span className="inline-block mt-1 px-2 py-0.5 rounded-md text-[10px] font-mono bg-[#2A2521] text-[#A3E635] border border-[#3E3832] uppercase">
                             {note.stage}
                           </span>
                         </td>
@@ -186,7 +186,7 @@ export function FeedbackNotesView() {
                               </span>
                             </div>
                             <div className="text-[#FFD0A1] bg-[#141210] p-2 rounded-lg border border-[#26211D]">
-                              <span className="font-mono text-[10px] uppercase text-[#E08B3F] block">
+                              <span className="font-mono text-[10px] uppercase text-[#A3E635] block">
                                 → What to try next:
                               </span>
                               <span className="font-serif leading-relaxed text-xs">
@@ -220,7 +220,7 @@ export function FeedbackNotesView() {
                             }
                             className={`px-2.5 py-1 rounded-full text-[10px] font-mono border focus:outline-none cursor-pointer ${
                               note.actionableStatus === "todo"
-                                ? "bg-amber-950/50 text-amber-300 border-amber-800"
+                                ? "bg-lime-950/50 text-lime-300 border-lime-800"
                                 : note.actionableStatus === "addressed"
                                 ? "bg-green-950/50 text-green-300 border-green-800"
                                 : "bg-stone-900 text-stone-400 border-stone-700"
@@ -236,7 +236,7 @@ export function FeedbackNotesView() {
                         <td className="py-4 px-4 align-top text-right whitespace-nowrap">
                           <Link
                             href={`/project/${note.projectId}`}
-                            className="inline-flex items-center gap-1 text-[11px] font-mono text-[#E08B3F] hover:underline"
+                            className="inline-flex items-center gap-1 text-[11px] font-mono text-[#A3E635] hover:underline"
                           >
                             <span>Open Project</span>
                             <ExternalLink className="w-3 h-3" />
@@ -258,15 +258,15 @@ export function FeedbackNotesView() {
             notes.map((note) => (
               <div
                 key={note._id}
-                className="p-5 bg-[#1C1A17] border border-[#2E2924] rounded-2xl space-y-3 shadow-xl hover:border-[#E08B3F]/50 transition-all"
+                className="p-5 bg-[#1C1A17] border border-[#2E2924] rounded-2xl space-y-3 shadow-xl hover:border-[#A3E635]/50 transition-all"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono uppercase bg-[#2A2521] text-[#E08B3F] px-2 py-0.5 rounded">
+                  <span className="text-[10px] font-mono uppercase bg-[#2A2521] text-[#A3E635] px-2 py-0.5 rounded">
                     {note.stage}
                   </span>
                   <span
                     className={`text-[10px] font-mono ${
-                      note.actionableStatus === "todo" ? "text-amber-400" : "text-green-400"
+                      note.actionableStatus === "todo" ? "text-lime-400" : "text-green-400"
                     }`}
                   >
                     {note.actionableStatus === "todo" ? "● Pending Action" : "✓ Iterated"}
@@ -292,7 +292,7 @@ export function FeedbackNotesView() {
                   </div>
                   <Link
                     href={`/project/${note.projectId}`}
-                    className="text-xs font-mono text-[#E08B3F] flex items-center gap-1 hover:underline"
+                    className="text-xs font-mono text-[#A3E635] flex items-center gap-1 hover:underline"
                   >
                     <span>View Card</span>
                     <ChevronRight className="w-3 h-3" />

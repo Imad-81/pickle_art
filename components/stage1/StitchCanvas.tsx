@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { uploadMedia } from "@/lib/uploader";
+import { resolveMediaUrl } from "@/lib/media";
 import {
   MousePointer,
   Hand,
@@ -277,13 +278,13 @@ export function StitchCanvas({
         <div className="flex items-center gap-2 px-3 py-1.5 bg-[#1C1916]/90 backdrop-blur-md border border-[#2E2924] rounded-xl text-xs font-mono text-[#EDE6DD] shadow-lg">
           <div className="flex gap-1.5 mr-1">
             <span className="w-2 h-2 rounded-full bg-red-400" />
-            <span className="w-2 h-2 rounded-full bg-amber-400" />
+            <span className="w-2 h-2 rounded-full bg-lime-400" />
             <span className="w-2 h-2 rounded-full bg-green-400" />
           </div>
           <span className="font-semibold">Stage 1: Foundation</span>
           <span className="text-[#7E776F]">·</span>
           <span className="text-[#8A837A]">Google Stitch Board</span>
-          <span className="text-[10px] text-[#E08B3F] bg-[#E08B3F]/15 px-2 py-0.5 rounded-full font-mono">
+          <span className="text-[10px] text-[#A3E635] bg-[#A3E635]/15 px-2 py-0.5 rounded-full font-mono">
             {items?.length || 0} nodes
           </span>
         </div>
@@ -298,7 +299,7 @@ export function StitchCanvas({
             title="Select & Move (V)"
             className={`p-2 rounded-xl transition-all ${
               activeTool === "select"
-                ? "bg-[#E08B3F] text-[#171512] shadow-sm font-bold"
+                ? "bg-[#A3E635] text-[#171512] shadow-sm font-bold"
                 : "text-[#8A837A] hover:text-[#EDE6DD] hover:bg-[#2A2521]"
             }`}
           >
@@ -311,7 +312,7 @@ export function StitchCanvas({
             title="Pan Canvas (H / Space+Drag)"
             className={`p-2 rounded-xl transition-all ${
               activeTool === "hand"
-                ? "bg-[#E08B3F] text-[#171512] shadow-sm font-bold"
+                ? "bg-[#A3E635] text-[#171512] shadow-sm font-bold"
                 : "text-[#8A837A] hover:text-[#EDE6DD] hover:bg-[#2A2521]"
             }`}
           >
@@ -336,7 +337,7 @@ export function StitchCanvas({
             title="Upload Media (Images, Video, Audio, PDF)"
             className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#241F1B] hover:bg-[#2F2923] text-xs font-sans text-[#EDE6DD] border border-[#3E3832] transition-colors"
           >
-            <Upload className="w-3.5 h-3.5 text-[#E08B3F]" />
+            <Upload className="w-3.5 h-3.5 text-[#A3E635]" />
             <span className="hidden sm:inline">Media</span>
           </button>
           <input
@@ -388,7 +389,7 @@ export function StitchCanvas({
 
       {/* Uploading indicator */}
       {isUploading && (
-        <div className="absolute top-16 right-4 z-30 flex items-center gap-2 px-3 py-1.5 bg-[#E08B3F] text-[#171512] rounded-xl text-xs font-semibold shadow-xl animate-bounce">
+        <div className="absolute top-16 right-4 z-30 flex items-center gap-2 px-3 py-1.5 bg-[#A3E635] text-[#171512] rounded-xl text-xs font-semibold shadow-xl animate-bounce">
           <Loader2 className="w-4 h-4 animate-spin" />
           <span>Compressing & placing on canvas...</span>
         </div>
@@ -452,7 +453,7 @@ export function StitchCanvas({
                     }}
                     className={`absolute rounded-2xl border-2 border-dashed transition-shadow ${
                       isSelected
-                        ? "border-[#E08B3F] bg-[#221E1A]/60 shadow-2xl"
+                        ? "border-[#A3E635] bg-[#221E1A]/60 shadow-2xl"
                         : "border-[#3D3630] bg-[#1C1A17]/30 hover:border-[#524941]"
                     }`}
                   >
@@ -489,7 +490,7 @@ export function StitchCanvas({
                       zIndex: item.zIndex || 10,
                     }}
                     className={`absolute p-4 rounded-sm shadow-xl transition-transform font-hand cursor-move ${
-                      isSelected ? "ring-2 ring-[#E08B3F] ring-offset-2 ring-offset-black scale-[1.02]" : "hover:scale-[1.01]"
+                      isSelected ? "ring-2 ring-[#A3E635] ring-offset-2 ring-offset-black scale-[1.02]" : "hover:scale-[1.01]"
                     }`}
                   >
                     {isSelected && isEditable && (
@@ -534,7 +535,7 @@ export function StitchCanvas({
                       zIndex: item.zIndex || 5,
                     }}
                     className={`absolute rounded-xl overflow-hidden bg-[#241F1B] border transition-all cursor-move shadow-xl ${
-                      isSelected ? "border-[#E08B3F] ring-2 ring-[#E08B3F]/50 scale-[1.02]" : "border-[#342D26] hover:border-[#4E443A]"
+                      isSelected ? "border-[#A3E635] ring-2 ring-[#A3E635]/50 scale-[1.02]" : "border-[#342D26] hover:border-[#4E443A]"
                     }`}
                   >
                     {isSelected && isEditable && (
@@ -548,7 +549,7 @@ export function StitchCanvas({
                       </div>
                     )}
                     <img
-                      src={item.content}
+                      src={resolveMediaUrl(item.content)}
                       alt={item.title || "Moodboard Image"}
                       className="w-full h-auto object-cover pointer-events-none rounded-t-xl"
                     />
@@ -574,11 +575,11 @@ export function StitchCanvas({
                       zIndex: item.zIndex || 5,
                     }}
                     className={`absolute p-4 rounded-xl bg-[#241F1B] border border-[#342D26] shadow-xl flex flex-col gap-2 cursor-move ${
-                      isSelected ? "border-[#E08B3F] ring-2 ring-[#E08B3F]/50" : ""
+                      isSelected ? "border-[#A3E635] ring-2 ring-[#A3E635]/50" : ""
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-xs font-mono text-[#E08B3F]">
+                      <div className="flex items-center gap-2 text-xs font-mono text-[#A3E635]">
                         <Music className="w-4 h-4" />
                         <span className="truncate max-w-[180px]">{item.title || "Audio Memo"}</span>
                       </div>
@@ -591,7 +592,7 @@ export function StitchCanvas({
                         </button>
                       )}
                     </div>
-                    <audio src={item.content} controls className="w-full h-8" />
+                    <audio src={resolveMediaUrl(item.content)} controls className="w-full h-8" />
                   </div>
                 );
               }
@@ -609,7 +610,7 @@ export function StitchCanvas({
                       zIndex: item.zIndex || 5,
                     }}
                     className={`absolute rounded-xl overflow-hidden bg-[#241F1B] border shadow-xl cursor-move ${
-                      isSelected ? "border-[#E08B3F]" : "border-[#342D26]"
+                      isSelected ? "border-[#A3E635]" : "border-[#342D26]"
                     }`}
                   >
                     {isSelected && isEditable && (
@@ -622,7 +623,7 @@ export function StitchCanvas({
                         </button>
                       </div>
                     )}
-                    <video src={item.content} controls className="w-full h-auto" />
+                    <video src={resolveMediaUrl(item.content)} controls className="w-full h-auto" />
                   </div>
                 );
               }
@@ -641,16 +642,16 @@ export function StitchCanvas({
                     }}
                     className="absolute p-3.5 rounded-xl bg-[#241F1B] border border-[#3E3832] shadow-xl flex items-center gap-3 cursor-move"
                   >
-                    <FileText className="w-8 h-8 text-[#E08B3F]" />
+                    <FileText className="w-8 h-8 text-[#A3E635]" />
                     <div className="truncate flex-1">
                       <div className="text-xs font-medium text-[#EDE6DD] truncate">
                         {item.title || "Document.pdf"}
                       </div>
                       <a
-                        href={item.content}
+                        href={resolveMediaUrl(item.content)}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-[10px] text-[#E08B3F] underline"
+                        className="text-[10px] text-[#A3E635] underline"
                       >
                         View PDF
                       </a>
@@ -677,7 +678,7 @@ export function StitchCanvas({
         {onNavigateToStage2 && (
           <button
             onClick={onNavigateToStage2}
-            className="pointer-events-auto flex items-center gap-2 px-5 py-2.5 bg-[#E08B3F] hover:bg-[#CA782F] text-[#171512] font-semibold text-xs rounded-xl transition-all shadow-lg active:scale-95 ml-auto"
+            className="pointer-events-auto flex items-center gap-2 px-5 py-2.5 bg-[#A3E635] hover:bg-[#65A30D] text-[#171512] font-semibold text-xs rounded-xl transition-all shadow-lg active:scale-95 ml-auto"
           >
             <span>Proceed to Stage 2: Development</span>
             <ArrowRight className="w-4 h-4" />

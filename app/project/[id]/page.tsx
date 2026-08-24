@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { resolveMediaUrl } from "@/lib/media";
 import { StitchCanvas } from "@/components/stage1/StitchCanvas";
 import { SubcardEditor } from "@/components/stage2/SubcardEditor";
 import { FinalOutputView } from "@/components/output/FinalOutputView";
@@ -117,7 +118,7 @@ export default function ProjectPage() {
             onClick={() => setActiveStage("overview")}
             className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-all shrink-0 ${
               activeStage === "overview"
-                ? "bg-[#2A2521] text-[#E08B3F] font-semibold border border-[#3E3832]"
+                ? "bg-[#2A2521] text-[#A3E635] font-semibold border border-[#3E3832]"
                 : "text-[#8A837A] hover:text-[#EDE6DD]"
             }`}
           >
@@ -127,23 +128,23 @@ export default function ProjectPage() {
             onClick={() => setActiveStage("stage1")}
             className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono transition-all shrink-0 ${
               activeStage === "stage1"
-                ? "bg-[#2A2521] text-[#E08B3F] font-semibold border border-[#3E3832]"
+                ? "bg-[#2A2521] text-[#A3E635] font-semibold border border-[#3E3832]"
                 : "text-[#8A837A] hover:text-[#EDE6DD]"
             }`}
           >
             <span>Stage 1: Board</span>
-            {project.stage1Completed && <CheckCircle className="w-3 h-3 text-[#E08B3F]" />}
+            {project.stage1Completed && <CheckCircle className="w-3 h-3 text-[#A3E635]" />}
           </button>
           <button
             onClick={() => setActiveStage("stage2")}
             className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono transition-all shrink-0 ${
               activeStage === "stage2"
-                ? "bg-[#2A2521] text-[#E08B3F] font-semibold border border-[#3E3832]"
+                ? "bg-[#2A2521] text-[#A3E635] font-semibold border border-[#3E3832]"
                 : "text-[#8A837A] hover:text-[#EDE6DD]"
             }`}
           >
             <span>Stage 2: Posts</span>
-            {project.stage2Completed && <CheckCircle className="w-3 h-3 text-[#E08B3F]" />}
+            {project.stage2Completed && <CheckCircle className="w-3 h-3 text-[#A3E635]" />}
           </button>
           <button
             onClick={() => setActiveStage("output")}
@@ -163,8 +164,8 @@ export default function ProjectPage() {
           onClick={() => setIsCritsOpen(!isCritsOpen)}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-mono transition-all shrink-0 ${
             isCritsOpen
-              ? "bg-[#E08B3F] text-[#171512] border-[#E08B3F] font-bold"
-              : "bg-[#241F1B] border-[#3E3832] text-[#EDE6DD] hover:border-[#E08B3F]"
+              ? "bg-[#A3E635] text-[#171512] border-[#A3E635] font-bold"
+              : "bg-[#241F1B] border-[#3E3832] text-[#EDE6DD] hover:border-[#A3E635]"
           }`}
         >
           <MessageSquare className="w-3.5 h-3.5" />
@@ -180,7 +181,7 @@ export default function ProjectPage() {
             <div className="lg:col-span-2 space-y-6">
               <div className="rounded-2xl overflow-hidden bg-[#1C1A17] border border-[#2E2924] shadow-2xl">
                 <img
-                  src={project.coverUrl}
+                  src={resolveMediaUrl(project.coverUrl)}
                   alt={project.title}
                   className="w-full h-auto max-h-[480px] object-cover"
                 />
@@ -194,7 +195,7 @@ export default function ProjectPage() {
 
                 {project.goals && (
                   <div className="p-4 bg-[#141210] rounded-xl border border-[#26211D] space-y-1">
-                    <div className="text-xs font-mono text-[#E08B3F]">CREATIVE GOALS & THESIS</div>
+                    <div className="text-xs font-mono text-[#A3E635]">CREATIVE GOALS & THESIS</div>
                     <p className="text-xs font-serif text-[#EDE6DD]/80 leading-relaxed">
                       {project.goals}
                     </p>
@@ -208,7 +209,7 @@ export default function ProjectPage() {
                   <h3 className="text-sm font-mono text-[#8A837A] uppercase">
                     Three-Stage Craft Lifecycle
                   </h3>
-                  <span className="text-xs font-mono text-[#E08B3F]">
+                  <span className="text-xs font-mono text-[#A3E635]">
                     {project.status === "complete" ? "Published Release" : "In Active Iteration"}
                   </span>
                 </div>
@@ -219,10 +220,10 @@ export default function ProjectPage() {
                     className="p-4 bg-[#141210] hover:bg-[#241F1B] border border-[#2E2924] rounded-xl text-left transition-all group"
                   >
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-mono text-[#E08B3F]">Stage 1</span>
-                      {project.stage1Completed && <CheckCircle className="w-4 h-4 text-[#E08B3F]" />}
+                      <span className="text-xs font-mono text-[#A3E635]">Stage 1</span>
+                      {project.stage1Completed && <CheckCircle className="w-4 h-4 text-[#A3E635]" />}
                     </div>
-                    <div className="text-sm font-serif font-semibold text-[#EDE6DD] group-hover:text-[#E08B3F]">
+                    <div className="text-sm font-serif font-semibold text-[#EDE6DD] group-hover:text-[#A3E635]">
                       Research Board
                     </div>
                     <p className="text-[11px] text-[#7E776F] mt-1">
@@ -235,10 +236,10 @@ export default function ProjectPage() {
                     className="p-4 bg-[#141210] hover:bg-[#241F1B] border border-[#2E2924] rounded-xl text-left transition-all group"
                   >
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-mono text-[#E08B3F]">Stage 2</span>
-                      {project.stage2Completed && <CheckCircle className="w-4 h-4 text-[#E08B3F]" />}
+                      <span className="text-xs font-mono text-[#A3E635]">Stage 2</span>
+                      {project.stage2Completed && <CheckCircle className="w-4 h-4 text-[#A3E635]" />}
                     </div>
-                    <div className="text-sm font-serif font-semibold text-[#EDE6DD] group-hover:text-[#E08B3F]">
+                    <div className="text-sm font-serif font-semibold text-[#EDE6DD] group-hover:text-[#A3E635]">
                       Development Posts
                     </div>
                     <p className="text-[11px] text-[#7E776F] mt-1">
@@ -273,7 +274,7 @@ export default function ProjectPage() {
                   <img
                     src={project.creatorAvatar}
                     alt={project.creatorName}
-                    className="w-14 h-14 rounded-full object-cover border-2 border-[#E08B3F]"
+                    className="w-14 h-14 rounded-full object-cover border-2 border-[#A3E635]"
                   />
                   <div>
                     <h3 className="text-base font-serif font-bold text-[#EDE6DD]">
@@ -284,7 +285,7 @@ export default function ProjectPage() {
                     </div>
                     <Link
                       href={`/profile/${project.creatorUsername}`}
-                      className="text-xs font-mono text-[#E08B3F] hover:underline block mt-0.5"
+                      className="text-xs font-mono text-[#A3E635] hover:underline block mt-0.5"
                     >
                       View Growth Trail →
                     </Link>
@@ -298,7 +299,7 @@ export default function ProjectPage() {
                     className={`w-full py-2 rounded-xl text-xs font-semibold font-mono flex items-center justify-center gap-1.5 transition-all ${
                       isFollowing
                         ? "bg-[#241F1B] text-[#8A837A] border border-[#3E3832]"
-                        : "bg-[#E08B3F] text-[#171512] hover:bg-[#CA782F]"
+                        : "bg-[#A3E635] text-[#171512] hover:bg-[#65A30D]"
                     }`}
                   >
                     {isFollowing ? (
@@ -353,7 +354,7 @@ export default function ProjectPage() {
                         <Link
                           key={idx}
                           href={`/discover?q=${encodeURIComponent(tag)}`}
-                          className="px-2.5 py-1 bg-[#241F1B] hover:bg-[#2E2924] border border-[#3E3832] rounded-full text-xs font-mono text-[#E08B3F] transition-colors"
+                          className="px-2.5 py-1 bg-[#241F1B] hover:bg-[#2E2924] border border-[#3E3832] rounded-full text-xs font-mono text-[#A3E635] transition-colors"
                         >
                           {tag.startsWith("#") ? tag : `#${tag}`}
                         </Link>

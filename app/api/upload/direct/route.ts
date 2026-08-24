@@ -1,13 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-
-const s3Client = new S3Client({
-  region: process.env.AWS_REGION || "ap-southeast-2",
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY || "",
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "",
-  },
-});
+import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { s3Client, S3_BUCKET_NAME, mediaUrl } from "@/lib/s3";
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,31 +12,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    const bucketName = process.env.S3_BUCKET_NAME || "pickle-art-s3-storage";
-    const region = process.env.AWS_REGION || "ap-southeast-2";
-
     const buffer = Buffer.from(await file.arrayBuffer());
     const sanitizedFilename = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
     const key = `${folder}/${Date.now()}-${sanitizedFilename}`;
 
     const command = new PutObjectCommand({
-      Bucket: bucketName,
+      Bucket: S3_BUCKET_NAME,
       Key: key,
       Body: buffer,
       ContentType: file.type || "application/octet-stream",
     });
 
     await s3Client.send(command);
-    const publicUrl = `https://${bucketName}.s3.${region}.amazonaws.com/${key}`;
+    const publicUrl = mediaUrl(key);
 
     return NextResponse.json({
       publicUrl,
       key,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Direct S3 upload error:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to upload file to S3" },
+      { error: error instanceof Error ? error.message : "Failed to upload file to S3" },
       { status: 500 }
     );
   }

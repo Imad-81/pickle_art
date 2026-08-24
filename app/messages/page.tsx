@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { resolveMediaUrl } from "@/lib/media";
 import { FeedbackNotesView } from "@/components/feedback/FeedbackNotesView";
 import { LeaveChannelModal } from "@/components/channels/LeaveChannelModal";
 import {
@@ -86,7 +87,7 @@ export default function MessagesHubPage() {
             onClick={() => setActiveTab("channels")}
             className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-mono transition-all ${
               activeTab === "channels"
-                ? "bg-[#2A2521] text-[#E08B3F] font-semibold border border-[#3E3832]"
+                ? "bg-[#2A2521] text-[#A3E635] font-semibold border border-[#3E3832]"
                 : "text-[#8A837A] hover:text-[#EDE6DD]"
             }`}
           >
@@ -97,7 +98,7 @@ export default function MessagesHubPage() {
             onClick={() => setActiveTab("feedback_notes")}
             className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-mono transition-all ${
               activeTab === "feedback_notes"
-                ? "bg-[#2A2521] text-[#E08B3F] font-semibold border border-[#3E3832]"
+                ? "bg-[#2A2521] text-[#A3E635] font-semibold border border-[#3E3832]"
                 : "text-[#8A837A] hover:text-[#EDE6DD]"
             }`}
           >
@@ -128,7 +129,7 @@ export default function MessagesHubPage() {
                       onClick={() => setActiveChannelSlug(ch.slug)}
                       className={`w-full flex items-center justify-between p-2.5 rounded-xl text-left transition-all border ${
                         isActive
-                          ? "bg-[#241F1B] border-[#E08B3F] text-[#EDE6DD]"
+                          ? "bg-[#241F1B] border-[#A3E635] text-[#EDE6DD]"
                           : "bg-[#141210] border-transparent text-[#8A837A] hover:bg-[#1E1B18] hover:text-[#EDE6DD]"
                       }`}
                     >
@@ -170,7 +171,7 @@ export default function MessagesHubPage() {
             {/* Channel Top Bar */}
             <div className="p-4 bg-[#141210] border-b border-[#2E2924] flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-[#E08B3F]/20 text-[#E08B3F] flex items-center justify-center font-mono font-bold text-xs">
+                <div className="w-8 h-8 rounded-lg bg-[#A3E635]/20 text-[#A3E635] flex items-center justify-center font-mono font-bold text-xs">
                   #
                 </div>
                 <div>
@@ -197,7 +198,7 @@ export default function MessagesHubPage() {
             <div className="flex-1 p-4 space-y-4 overflow-y-auto">
               {channelMessages && channelMessages.length === 0 && (
                 <div className="p-12 text-center text-xs text-[#8A837A] space-y-2">
-                  <Sparkles className="w-6 h-6 text-[#E08B3F] mx-auto" />
+                  <Sparkles className="w-6 h-6 text-[#A3E635] mx-auto" />
                   <p>No messages yet in #{activeChannelSlug}. Share a thought or WIP card!</p>
                 </div>
               )}
@@ -216,7 +217,7 @@ export default function MessagesHubPage() {
                         className="w-7 h-7 rounded-full object-cover shrink-0 mt-0.5"
                       />
                       <div className="space-y-1">
-                        <div className={`flex items-center gap-2 text-[10px] font-mono ${isMe ? "justify-end text-[#E08B3F]" : "text-[#8A837A]"}`}>
+                        <div className={`flex items-center gap-2 text-[10px] font-mono ${isMe ? "justify-end text-[#A3E635]" : "text-[#8A837A]"}`}>
                           <span className="font-semibold">{msg.senderName}</span>
                           <span>
                             {new Date(msg.createdAt).toLocaleTimeString([], {
@@ -229,7 +230,7 @@ export default function MessagesHubPage() {
                         <div
                           className={`p-3 rounded-2xl text-xs font-sans leading-relaxed ${
                             isMe
-                              ? "bg-[#E08B3F] text-[#171512] rounded-tr-none font-medium"
+                              ? "bg-[#A3E635] text-[#171512] rounded-tr-none font-medium"
                               : "bg-[#241F1B] text-[#EDE6DD] rounded-tl-none border border-[#342D26]"
                           }`}
                         >
@@ -245,7 +246,7 @@ export default function MessagesHubPage() {
                                 >
                                   {att.url && (
                                     <img
-                                      src={att.url}
+                                      src={resolveMediaUrl(att.url)}
                                       alt="Attachment"
                                       className="w-10 h-10 rounded-lg object-cover"
                                     />
@@ -274,12 +275,12 @@ export default function MessagesHubPage() {
                 value={messageText}
                 onChange={(e) => setMessageText(e.target.value)}
                 placeholder={`Message #${activeChannelSlug}...`}
-                className="flex-1 bg-[#1C1A17] border border-[#2E2924] rounded-full px-4 py-2.5 text-xs text-[#EDE6DD] placeholder-[#6E675F] focus:outline-none focus:border-[#E08B3F]"
+                className="flex-1 bg-[#1C1A17] border border-[#2E2924] rounded-full px-4 py-2.5 text-xs text-[#EDE6DD] placeholder-[#6E675F] focus:outline-none focus:border-[#A3E635]"
               />
               <button
                 type="submit"
                 disabled={!messageText.trim()}
-                className="p-2.5 rounded-full bg-[#E08B3F] hover:bg-[#CA782F] text-[#171512] disabled:opacity-40 transition-colors shadow-md"
+                className="p-2.5 rounded-full bg-[#A3E635] hover:bg-[#65A30D] text-[#171512] disabled:opacity-40 transition-colors shadow-md"
               >
                 <Send className="w-4 h-4" />
               </button>

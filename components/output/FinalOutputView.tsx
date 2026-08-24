@@ -4,6 +4,7 @@ import React, { useState, useRef } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { uploadMedia } from "@/lib/uploader";
+import { resolveMediaUrl } from "@/lib/media";
 import {
   AlertCircle,
   Sparkles,
@@ -99,7 +100,7 @@ export function FinalOutputView({
                   isExemptPhotography: true,
                 })
               }
-              className="inline-flex items-center gap-2 text-xs font-mono text-[#8A837A] hover:text-[#E08B3F] transition-colors"
+              className="inline-flex items-center gap-2 text-xs font-mono text-[#8A837A] hover:text-[#A3E635] transition-colors"
             >
               <Camera className="w-3.5 h-3.5" />
               <span>Enable Single-Shot / Photography Exemption</span>
@@ -156,7 +157,7 @@ export function FinalOutputView({
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-[#1C1A17] border border-[#2E2924] rounded-2xl">
         <div>
-          <div className="flex items-center gap-2 text-xs font-mono text-[#E08B3F] mb-1">
+          <div className="flex items-center gap-2 text-xs font-mono text-[#A3E635] mb-1">
             <CheckCircle className="w-3.5 h-3.5 text-green-400" />
             <span>STAGE 3: FINAL OUTPUT & RELEASE</span>
           </div>
@@ -171,7 +172,7 @@ export function FinalOutputView({
         {isOwner && !isEditing && (
           <button
             onClick={() => setIsEditing(true)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-[#E08B3F] hover:bg-[#CA782F] text-[#171512] font-semibold text-xs rounded-xl shadow-md"
+            className="flex items-center gap-1.5 px-4 py-2 bg-[#A3E635] hover:bg-[#65A30D] text-[#171512] font-semibold text-xs rounded-xl shadow-md"
           >
             <Upload className="w-4 h-4" />
             <span>{finalOutput ? "Update Showcase" : "Upload Final Output"}</span>
@@ -183,7 +184,7 @@ export function FinalOutputView({
       {isEditing && isOwner && (
         <form
           onSubmit={handleSaveOutput}
-          className="p-6 bg-[#1C1A17] border border-[#E08B3F]/50 rounded-2xl space-y-4 shadow-2xl"
+          className="p-6 bg-[#1C1A17] border border-[#A3E635]/50 rounded-2xl space-y-4 shadow-2xl"
         >
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-[#EDE6DD] font-mono">
@@ -207,7 +208,7 @@ export function FinalOutputView({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder={project.title + " — Final Release"}
-              className="w-full px-3.5 py-2.5 bg-[#141210] border border-[#2E2924] rounded-lg text-sm text-[#EDE6DD] placeholder-[#6E675F] focus:outline-none focus:border-[#E08B3F]"
+              className="w-full px-3.5 py-2.5 bg-[#141210] border border-[#2E2924] rounded-lg text-sm text-[#EDE6DD] placeholder-[#6E675F] focus:outline-none focus:border-[#A3E635]"
             />
           </div>
 
@@ -220,7 +221,7 @@ export function FinalOutputView({
               onChange={(e) => setSummary(e.target.value)}
               placeholder="Comprehensive summary of the final craft..."
               rows={3}
-              className="w-full px-3.5 py-2.5 bg-[#141210] border border-[#2E2924] rounded-lg text-sm font-serif text-[#EDE6DD] placeholder-[#6E675F] focus:outline-none focus:border-[#E08B3F]"
+              className="w-full px-3.5 py-2.5 bg-[#141210] border border-[#2E2924] rounded-lg text-sm font-serif text-[#EDE6DD] placeholder-[#6E675F] focus:outline-none focus:border-[#A3E635]"
             />
           </div>
 
@@ -233,7 +234,7 @@ export function FinalOutputView({
               onChange={(e) => setBehindTheScenes(e.target.value)}
               placeholder="Reflections on what this project taught you, what trade-offs you made..."
               rows={3}
-              className="w-full px-3.5 py-2.5 bg-[#141210] border border-[#2E2924] rounded-lg text-sm font-serif text-[#EDE6DD] placeholder-[#6E675F] focus:outline-none focus:border-[#E08B3F]"
+              className="w-full px-3.5 py-2.5 bg-[#141210] border border-[#2E2924] rounded-lg text-sm font-serif text-[#EDE6DD] placeholder-[#6E675F] focus:outline-none focus:border-[#A3E635]"
             />
           </div>
 
@@ -244,7 +245,7 @@ export function FinalOutputView({
             </label>
             <div
               onClick={() => fileInputRef.current?.click()}
-              className="p-6 border border-dashed border-[#342D26] hover:border-[#E08B3F] rounded-xl bg-[#141210] text-center cursor-pointer transition-colors"
+              className="p-6 border border-dashed border-[#342D26] hover:border-[#A3E635] rounded-xl bg-[#141210] text-center cursor-pointer transition-colors"
             >
               <input
                 ref={fileInputRef}
@@ -254,7 +255,7 @@ export function FinalOutputView({
                 onChange={(e) => setFiles(Array.from(e.target.files || []))}
                 className="hidden"
               />
-              <Upload className="w-6 h-6 text-[#E08B3F] mx-auto mb-2" />
+              <Upload className="w-6 h-6 text-[#A3E635] mx-auto mb-2" />
               <span className="text-xs text-[#EDE6DD] block">
                 {files.length > 0
                   ? `${files.length} file(s) ready to upload`
@@ -277,7 +278,7 @@ export function FinalOutputView({
             <button
               type="submit"
               disabled={isPublishing}
-              className="px-6 py-2 bg-[#E08B3F] hover:bg-[#CA782F] text-[#171512] font-semibold text-xs rounded-xl flex items-center gap-2"
+              className="px-6 py-2 bg-[#A3E635] hover:bg-[#65A30D] text-[#171512] font-semibold text-xs rounded-xl flex items-center gap-2"
             >
               {isPublishing ? (
                 <>
@@ -314,13 +315,13 @@ export function FinalOutputView({
                 >
                   {m.type === "image" && (
                     <img
-                      src={m.url}
+                      src={resolveMediaUrl(m.url)}
                       alt={m.caption || "Final output"}
                       className="w-full h-auto max-h-[640px] object-contain"
                     />
                   )}
                   {m.type === "video" && (
-                    <video src={m.url} controls className="w-full h-auto max-h-[640px]" />
+                    <video src={resolveMediaUrl(m.url)} controls className="w-full h-auto max-h-[640px]" />
                   )}
                   {m.caption && (
                     <div className="p-3 bg-[#171512] text-xs font-mono text-[#8A837A]">
@@ -335,7 +336,7 @@ export function FinalOutputView({
           {/* Behind the scenes narration */}
           {finalOutput.behindTheScenes && (
             <div className="p-5 bg-[#241F1B] rounded-xl border border-[#342D26] space-y-2">
-              <div className="text-xs font-mono text-[#E08B3F] font-semibold">
+              <div className="text-xs font-mono text-[#A3E635] font-semibold">
                 BEHIND THE SCENES & REFLECTIONS
               </div>
               <p className="text-sm font-serif text-[#EDE6DD]/90 leading-relaxed italic">
@@ -352,13 +353,13 @@ export function FinalOutputView({
                 {finalOutput.fileAttachments.map((f: any, idx: number) => (
                   <a
                     key={idx}
-                    href={f.url}
+                    href={resolveMediaUrl(f.url)}
                     target="_blank"
                     rel="noreferrer"
                     className="flex items-center justify-between p-3 bg-[#141210] hover:bg-[#241F1B] border border-[#2E2924] rounded-xl text-xs text-[#EDE6DD] transition-colors"
                   >
                     <div className="flex items-center gap-2 truncate">
-                      <FileText className="w-4 h-4 text-[#E08B3F]" />
+                      <FileText className="w-4 h-4 text-[#A3E635]" />
                       <span className="truncate">{f.name}</span>
                     </div>
                     <Download className="w-4 h-4 text-[#8A837A]" />
@@ -371,7 +372,7 @@ export function FinalOutputView({
       ) : (
         !isEditing && (
           <div className="p-12 text-center bg-[#1C1A17] border border-[#2E2924] rounded-2xl space-y-4">
-            <Sparkles className="w-8 h-8 text-[#E08B3F] mx-auto" />
+            <Sparkles className="w-8 h-8 text-[#A3E635] mx-auto" />
             <h3 className="text-lg font-serif font-medium text-[#EDE6DD]">
               Stage 1 & Stage 2 Completed — Output Ready to Upload!
             </h3>
@@ -381,7 +382,7 @@ export function FinalOutputView({
             {isOwner && (
               <button
                 onClick={() => setIsEditing(true)}
-                className="px-5 py-2.5 bg-[#E08B3F] text-[#171512] font-semibold text-xs rounded-xl shadow-lg"
+                className="px-5 py-2.5 bg-[#A3E635] text-[#171512] font-semibold text-xs rounded-xl shadow-lg"
               >
                 Upload Final Release
               </button>
