@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useQuery, useMutation } from "convex/react";
@@ -33,7 +33,11 @@ export default function ProjectPage() {
   const { user, openAuthModal } = useAuth();
 
   const [activeStage, setActiveStage] = useState<"overview" | "stage1" | "stage2" | "output">("overview");
-  const [isCritsOpen, setIsCritsOpen] = useState(false);
+  const critSectionRef = useRef<HTMLDivElement>(null);
+
+  const scrollToCrits = () => {
+    critSectionRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   const project = useQuery(api.projects.getProjectById, {
     projectId: projectId as any,
@@ -159,16 +163,13 @@ export default function ProjectPage() {
           </button>
         </div>
 
-        {/* Crit Toggle Action */}
+        {/* Crit Scroll Action */}
         <button
-          onClick={() => setIsCritsOpen(!isCritsOpen)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-mono transition-all shrink-0 ${
-            isCritsOpen
-              ? "bg-[#A3E635] text-[#171512] border-[#A3E635] font-bold"
-              : "bg-[#241F1B] border-[#3E3832] text-[#EDE6DD] hover:border-[#A3E635]"
-          }`}
+          onClick={scrollToCrits}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#3E3832] bg-[#241F1B] text-[#EDE6DD] hover:border-[#A3E635] hover:text-[#A3E635] text-xs font-mono transition-all shrink-0 active:scale-95 cursor-pointer shadow-sm group"
+          title="Scroll to Crits"
         >
-          <MessageSquare className="w-3.5 h-3.5" />
+          <MessageSquare className="w-3.5 h-3.5 text-[#A3E635] group-hover:scale-110 transition-transform" />
           <span className="hidden sm:inline">Crits ({project.stats?.critsCount || 0})</span>
         </button>
       </div>
@@ -401,18 +402,22 @@ export default function ProjectPage() {
           </div>
         )}
 
-        {/* Stage-Pinned Crits Drawer / Section */}
-        {isCritsOpen && (
-          <div className="mt-8 border-t border-[#2E2924] pt-6 animate-fade-in">
-            <CritPanel
-              projectId={project._id}
-              projectTitle={project.title}
-              currentStage={
-                activeStage === "stage1" ? "stage1" : activeStage === "stage2" ? "stage2" : "output"
-              }
-            />
-          </div>
-        )}
+        {/* Stage-Pinned Crits Section (Always Visible by Default) */}
+        <div ref={critSectionRef} id="crits-section" className="mt-12 border-t border-[#2E2924] pt-8 scroll-mt-24">
+          <CritPanel
+            projectId={project._id}
+            projectTitle={project.title}
+            currentStage={
+              activeStage === "stage1"
+                ? "stage1"
+                : activeStage === "stage2"
+                ? "stage2"
+                : activeStage === "output"
+                ? "output"
+                : "stage1"
+            }
+          />
+        </div>
       </div>
     </div>
   );

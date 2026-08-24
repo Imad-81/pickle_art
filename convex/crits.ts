@@ -4,16 +4,24 @@ import { mutation, query } from "./_generated/server";
 export const getCritsByStage = query({
   args: {
     projectId: v.string(),
-    stage: v.union(v.literal("stage1"), v.literal("stage2"), v.literal("output")),
+    stage: v.optional(v.union(v.literal("all"), v.literal("stage1"), v.literal("stage2"), v.literal("output"))),
     subcardId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    let crits = await ctx.db
-      .query("crits")
-      .withIndex("by_project_stage", (q) =>
-        q.eq("projectId", args.projectId).eq("targetStage", args.stage)
-      )
-      .collect();
+    let crits;
+    if (args.stage && args.stage !== "all") {
+      crits = await ctx.db
+        .query("crits")
+        .withIndex("by_project_stage", (q) =>
+          q.eq("projectId", args.projectId).eq("targetStage", args.stage as any)
+        )
+        .collect();
+    } else {
+      crits = await ctx.db
+        .query("crits")
+        .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+        .collect();
+    }
 
     if (args.subcardId) {
       crits = crits.filter((c) => c.targetSubcardId === args.subcardId);
