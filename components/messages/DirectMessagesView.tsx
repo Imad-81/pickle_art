@@ -225,11 +225,15 @@ export function DirectMessagesView({
     activeConversation.initiatorId === currentUserId;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[74vh] min-h-[540px]">
-      {/* 1. LEFT PANEL: CONVERSATIONS LIST (4 cols) */}
-      <div className="lg:col-span-4 bg-[#1C1A17] border border-[#2E2924] rounded-2xl flex flex-col justify-between overflow-hidden shadow-2xl">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 h-[calc(100dvh-200px)] sm:h-[74vh] min-h-[500px]">
+      {/* 1. LEFT PANEL: CONVERSATIONS LIST (4 cols on desktop, full screen on mobile when no chat open) */}
+      <div
+        className={`lg:col-span-4 bg-[#1C1A17] border border-[#2E2924] rounded-2xl flex flex-col justify-between overflow-hidden shadow-2xl ${
+          selectedConversationId ? "hidden lg:flex" : "flex"
+        }`}
+      >
         {/* Top actions & Sub-tabs */}
-        <div className="p-3.5 border-b border-[#2E2924] space-y-3 bg-[#141210]">
+        <div className="p-3 sm:p-3.5 border-b border-[#2E2924] space-y-2.5 sm:space-y-3 bg-[#141210]">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-[#EDE6DD] font-serif">
               Direct Messages
@@ -242,7 +246,7 @@ export function DirectMessagesView({
                 }
                 setNewMessageModalOpen(true);
               }}
-              className="p-1.5 px-2.5 rounded-xl bg-[#A3E635] hover:bg-[#65A30D] text-[#171512] text-xs font-semibold font-mono flex items-center gap-1.5 transition-all shadow-sm"
+              className="p-1.5 px-2.5 rounded-xl bg-[#A3E635] hover:bg-[#65A30D] text-[#171512] text-xs font-semibold font-mono flex items-center gap-1.5 transition-all shadow-sm active:scale-95"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>New DM</span>
@@ -324,7 +328,7 @@ export function DirectMessagesView({
                 <button
                   key={conv._id}
                   onClick={() => setSelectedConversationId(conv._id)}
-                  className={`w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all border ${
+                  className={`w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all border active:scale-[0.99] ${
                     isSelected
                       ? "bg-[#241F1B] border-[#A3E635] text-[#EDE6DD] shadow-md"
                       : "bg-[#141210] border-transparent hover:bg-[#1E1B18] text-[#8A837A] hover:text-[#EDE6DD]"
@@ -389,8 +393,12 @@ export function DirectMessagesView({
         )}
       </div>
 
-      {/* 2. RIGHT PANEL: CHAT THREAD (8 cols) */}
-      <div className="lg:col-span-8 bg-[#1C1A17] border border-[#2E2924] rounded-2xl flex flex-col justify-between overflow-hidden shadow-2xl">
+      {/* 2. RIGHT PANEL: CHAT THREAD (8 cols on desktop, full screen on mobile when chat is open) */}
+      <div
+        className={`lg:col-span-8 bg-[#1C1A17] border border-[#2E2924] rounded-2xl flex flex-col justify-between overflow-hidden shadow-2xl ${
+          !selectedConversationId ? "hidden lg:flex" : "flex"
+        }`}
+      >
         {!selectedConversationId || !activeConversation ? (
           /* Empty Chat State */
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
@@ -421,46 +429,55 @@ export function DirectMessagesView({
           </div>
         ) : (
           <>
-            {/* Thread Header */}
-            <div className="p-3.5 bg-[#141210] border-b border-[#2E2924] flex items-center justify-between">
-              <div className="flex items-center gap-3">
+            {/* Thread Header with Mobile Back Button */}
+            <div className="p-3 sm:p-3.5 bg-[#141210] border-b border-[#2E2924] flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                {/* Mobile Back Button (Instagram Style) */}
+                <button
+                  onClick={() => setSelectedConversationId(null)}
+                  className="lg:hidden p-1 -ml-1 rounded-lg text-[#8A837A] hover:text-[#EDE6DD] hover:bg-[#241F1B] transition-colors shrink-0"
+                  title="Back to inbox"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
+
                 <Link
                   href={`/profile/${activeConversation.otherUser.username}`}
-                  className="relative group"
+                  className="relative group shrink-0"
                 >
                   <img
                     src={activeConversation.otherUser.avatarUrl}
                     alt={activeConversation.otherUser.name}
-                    className="w-9 h-9 rounded-full object-cover border border-[#342D26] group-hover:border-[#A3E635] transition-colors"
+                    className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover border border-[#342D26] group-hover:border-[#A3E635] transition-colors"
                   />
                   {activeConversation.status === "accepted" && (
                     <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-green-500 border-2 border-[#141210]" />
                   )}
                 </Link>
 
-                <div>
-                  <div className="flex items-center gap-2">
+                <div className="min-w-0 truncate">
+                  <div className="flex items-center gap-1.5 truncate">
                     <Link
                       href={`/profile/${activeConversation.otherUser.username}`}
-                      className="text-xs font-semibold text-[#EDE6DD] hover:text-[#A3E635] transition-colors"
+                      className="text-xs font-semibold text-[#EDE6DD] hover:text-[#A3E635] transition-colors truncate"
                     >
                       {activeConversation.otherUser.name}
                     </Link>
-                    <span className="text-[10px] font-mono text-[#7E776F]">
+                    <span className="text-[10px] font-mono text-[#7E776F] hidden sm:inline">
                       @{activeConversation.otherUser.username}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2 text-[10px] font-mono text-[#8A837A]">
+                  <div className="flex items-center gap-1.5 text-[10px] font-mono text-[#8A837A] truncate">
                     <span className="text-[#A3E635]">
-                      {activeConversation.otherUser.growthPoints || 50} craft pts
+                      {activeConversation.otherUser.growthPoints || 50} pts
                     </span>
                     {activeConversation.otherUser.disciplines &&
                       activeConversation.otherUser.disciplines.length > 0 && (
                         <>
                           <span>•</span>
-                          <span className="truncate max-w-[150px]">
-                            {activeConversation.otherUser.disciplines.join(", ")}
+                          <span className="truncate max-w-[110px] sm:max-w-[160px]">
+                            {activeConversation.otherUser.disciplines[0]}
                           </span>
                         </>
                       )}
@@ -469,10 +486,10 @@ export function DirectMessagesView({
               </div>
 
               {/* Top Header Actions */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                 <button
                   onClick={handleToggleFollow}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-mono flex items-center gap-1.5 transition-all ${
+                  className={`px-2 sm:px-3 py-1.5 rounded-lg text-xs font-mono flex items-center gap-1 sm:gap-1.5 transition-all ${
                     activeConversation.isFollowing
                       ? "bg-[#241F1B] text-[#8A837A] border border-[#3E3832]"
                       : "bg-[#2A2521] text-[#A3E635] hover:bg-[#342E29] border border-[#3E3832]"
@@ -481,22 +498,23 @@ export function DirectMessagesView({
                   {activeConversation.isFollowing ? (
                     <>
                       <UserCheck className="w-3.5 h-3.5 text-green-400" />
-                      <span>Following</span>
+                      <span className="hidden sm:inline">Following</span>
                     </>
                   ) : (
                     <>
                       <UserPlus className="w-3.5 h-3.5" />
-                      <span>Follow</span>
+                      <span className="hidden sm:inline">Follow</span>
                     </>
                   )}
                 </button>
 
                 <Link
                   href={`/profile/${activeConversation.otherUser.username}`}
-                  className="p-1.5 px-2.5 rounded-lg bg-[#241F1B] hover:bg-[#342D26] text-xs font-mono text-[#8A837A] hover:text-[#EDE6DD] flex items-center gap-1 transition-colors"
+                  className="p-1.5 sm:px-2.5 rounded-lg bg-[#241F1B] hover:bg-[#342D26] text-xs font-mono text-[#8A837A] hover:text-[#EDE6DD] flex items-center gap-1 transition-colors"
+                  title="View Profile"
                 >
-                  <span>Profile</span>
-                  <ExternalLink className="w-3 h-3" />
+                  <span className="hidden sm:inline">Profile</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
                 </Link>
               </div>
             </div>

@@ -41,9 +41,9 @@ export function AttachCardModal({
     : allProjects || [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
       <div
-        className="w-full max-w-lg bg-[#1C1A17] border border-[#2E2924] rounded-3xl p-6 shadow-2xl space-y-4 max-h-[85vh] flex flex-col"
+        className="w-full max-w-lg bg-[#1C1A17] border border-[#2E2924] rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-2xl space-y-3.5 sm:space-y-4 max-h-[90vh] sm:max-h-[85vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

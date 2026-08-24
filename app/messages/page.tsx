@@ -85,24 +85,24 @@ function MessagesHubContent() {
   const currentChannel = channels?.find((c) => c.slug === activeChannelSlug);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6 animate-fade-in">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-6 space-y-4 sm:space-y-6 pb-24 sm:pb-8 animate-fade-in">
       {/* Top Hub Header & Switcher */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 bg-[#1C1A17] border border-[#2E2924] rounded-2xl shadow-xl">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 p-3.5 sm:p-5 bg-[#1C1A17] border border-[#2E2924] rounded-2xl shadow-xl">
         <div>
-          <h1 className="text-xl font-serif font-bold text-[#EDE6DD]">
+          <h1 className="text-lg sm:text-xl font-serif font-bold text-[#EDE6DD]">
             Studio Messages & Notes
           </h1>
-          <p className="text-xs text-[#8A837A] font-sans">
+          <p className="text-[11px] sm:text-xs text-[#8A837A] font-sans">
             Direct creator messaging, discipline rooms, and your personal feedback repository.
           </p>
         </div>
 
         {/* Tab switch (DM, Channels, Feedback Notes) */}
-        <div className="flex items-center gap-1 p-1 bg-[#141210] border border-[#2E2924] rounded-xl self-start sm:self-auto overflow-x-auto max-w-full">
+        <div className="flex items-center gap-1 p-1 bg-[#141210] border border-[#2E2924] rounded-xl self-start sm:self-auto overflow-x-auto max-w-full w-full sm:w-auto scrollbar-none">
           {/* 1. Direct Messages Tab */}
           <button
             onClick={() => setActiveTab("dm")}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-mono transition-all shrink-0 ${
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 rounded-lg text-[11px] sm:text-xs font-mono transition-all shrink-0 ${
               activeTab === "dm"
                 ? "bg-[#2A2521] text-[#A3E635] font-semibold border border-[#3E3832]"
                 : "text-[#8A837A] hover:text-[#EDE6DD]"
@@ -120,27 +120,27 @@ function MessagesHubContent() {
           {/* 2. Discipline Channels Tab */}
           <button
             onClick={() => setActiveTab("channels")}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-mono transition-all shrink-0 ${
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 rounded-lg text-[11px] sm:text-xs font-mono transition-all shrink-0 ${
               activeTab === "channels"
                 ? "bg-[#2A2521] text-[#A3E635] font-semibold border border-[#3E3832]"
                 : "text-[#8A837A] hover:text-[#EDE6DD]"
             }`}
           >
             <Hash className="w-3.5 h-3.5" />
-            <span>Discipline Rooms</span>
+            <span>Rooms</span>
           </button>
 
           {/* 3. Feedback Notebook Tab */}
           <button
             onClick={() => setActiveTab("feedback_notes")}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-mono transition-all shrink-0 ${
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 rounded-lg text-[11px] sm:text-xs font-mono transition-all shrink-0 ${
               activeTab === "feedback_notes"
                 ? "bg-[#2A2521] text-[#A3E635] font-semibold border border-[#3E3832]"
                 : "text-[#8A837A] hover:text-[#EDE6DD]"
             }`}
           >
             <BookOpen className="w-3.5 h-3.5" />
-            <span>Feedback Notebook</span>
+            <span>Notebook</span>
           </button>
         </div>
       </div>
