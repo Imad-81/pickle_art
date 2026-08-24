@@ -1,0 +1,184 @@
+import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
+
+export const listChannels = query({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db.query("channels").collect();
+  },
+});
+
+export const getChannelBySlug = query({
+  args: { slug: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("channels")
+      .withIndex("by_slug", (q) => q.eq("slug", args.slug))
+      .first();
+  },
+});
+
+export const getUserChannels = query({
+  args: { userId: v.string() },
+  handler: async (ctx, args) => {
+    const memberships = await ctx.db
+      .query("channelMemberships")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .collect();
+    return memberships.map((m) => m.channelSlug);
+  },
+});
+
+export const joinChannel = mutation({
+  args: {
+    userId: v.string(),
+    channelSlug: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("channelMemberships")
+      .withIndex("by_pair", (q) =>
+        q.eq("userId", args.userId).eq("channelSlug", args.channelSlug)
+      )
+      .first();
+
+    if (!existing) {
+      await ctx.db.insert("channelMemberships", {
+        userId: args.userId,
+        channelSlug: args.channelSlug,
+        joinedAt: Date.now(),
+      });
+
+      const channel = await ctx.db
+        .query("channels")
+        .withIndex("by_slug", (q) => q.eq("slug", args.channelSlug))
+        .first();
+
+      if (channel) {
+        await ctx.db.patch(channel._id, {
+          memberCount: channel.memberCount + 1,
+        });
+      }
+    }
+  },
+});
+
+export const leaveChannel = mutation({
+  args: {
+    userId: v.string(),
+    channelSlug: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("channelMemberships")
+      .withIndex("by_pair", (q) =>
+        q.eq("userId", args.userId).eq("channelSlug", args.channelSlug)
+      )
+      .first();
+
+    if (existing) {
+      await ctx.db.delete(existing._id);
+
+      const channel = await ctx.db
+        .query("channels")
+        .withIndex("by_slug", (q) => q.eq("slug", args.channelSlug))
+        .first();
+
+      if (channel && channel.memberCount > 0) {
+        await ctx.db.patch(channel._id, {
+          memberCount: channel.memberCount - 1,
+        });
+      }
+    }
+  },
+});
+
+export const getChannelMessages = query({
+  args: { channelSlug: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("messages")
+      .withIndex("by_channel", (q) => q.eq("channelSlug", args.channelSlug))
+      .order("asc")
+      .collect();
+  },
+});
+
+export const sendChannelMessage = mutation({
+  args: {
+    channelSlug: v.string(),
+    senderId: v.string(),
+    senderName: v.string(),
+    senderAvatar: v.string(),
+    text: v.string(),
+    attachments: v.optional(
+      v.array(
+        v.object({
+          type: v.union(v.literal("card"), v.literal("image"), v.literal("file")),
+          url: v.optional(v.string()),
+          name: v.optional(v.string()),
+          cardId: v.optional(v.string()),
+          cardTitle: v.optional(v.string()),
+          cardCover: v.optional(v.string()),
+        })
+      )
+    ),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.insert("messages", {
+      channelSlug: args.channelSlug,
+      senderId: args.senderId,
+      senderName: args.senderName,
+      senderAvatar: args.senderAvatar,
+      text: args.text,
+      attachments: args.attachments || [],
+      createdAt: Date.now(),
+    });
+  },
+});
+
+export const getDirectMessages = query({
+  args: { conversationId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("messages")
+      .withIndex("by_conversation", (q) => q.eq("conversationId", args.conversationId))
+      .order("asc")
+      .collect();
+  },
+});
+
+export const sendDirectMessage = mutation({
+  args: {
+    conversationId: v.string(),
+    senderId: v.string(),
+    senderName: v.string(),
+    senderAvatar: v.string(),
+    receiverId: v.string(),
+    text: v.string(),
+    attachments: v.optional(
+      v.array(
+        v.object({
+          type: v.union(v.literal("card"), v.literal("image"), v.literal("file")),
+          url: v.optional(v.string()),
+          name: v.optional(v.string()),
+          cardId: v.optional(v.string()),
+          cardTitle: v.optional(v.string()),
+          cardCover: v.optional(v.string()),
+        })
+      )
+    ),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.insert("messages", {
+      conversationId: args.conversationId,
+      senderId: args.senderId,
+      senderName: args.senderName,
+      senderAvatar: args.senderAvatar,
+      receiverId: args.receiverId,
+      text: args.text,
+      attachments: args.attachments || [],
+      createdAt: Date.now(),
+    });
+  },
+});
