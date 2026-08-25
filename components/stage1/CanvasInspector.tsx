@@ -88,14 +88,15 @@ export function CanvasInspector({
   const isMulti = selectedItems.length > 1;
   const primaryItem = selectedItems[0];
   const itemType = isMulti ? "multiple" : primaryItem.type;
+  const meta = (primaryItem.metadata as any) || {};
 
-  const currentStroke = properties.strokeColor || primaryItem.color || "#A3E635";
-  const currentFill = properties.fillColor || (primaryItem.metadata as any)?.fillColor || "transparent";
-  const currentFillStyle = properties.fillStyle || (primaryItem.metadata as any)?.fillStyle || (itemType === "shape" ? "solid" : "none");
-  const currentWidth = properties.strokeWidth || (primaryItem.metadata as any)?.strokeWidth || 3;
-  const currentStyle = properties.strokeStyle || (primaryItem.metadata as any)?.strokeStyle || "solid";
-  const currentRoughness = properties.roughness || (primaryItem.metadata as any)?.roughness || "clean";
-  const currentOpacity = properties.opacity !== undefined ? properties.opacity : ((primaryItem.metadata as any)?.opacity ?? 1);
+  const currentStroke = primaryItem.color || properties.strokeColor || "#A3E635";
+  const currentFill = meta.fillColor || properties.fillColor || "transparent";
+  const currentFillStyle = meta.fillStyle || properties.fillStyle || (itemType === "shape" ? "solid" : "none");
+  const currentWidth = meta.strokeWidth ?? properties.strokeWidth ?? 3;
+  const currentStyle = meta.strokeStyle || properties.strokeStyle || "solid";
+  const currentRoughness = meta.roughness || properties.roughness || "clean";
+  const currentOpacity = meta.opacity !== undefined ? meta.opacity : (properties.opacity ?? 1);
 
   return (
     <div

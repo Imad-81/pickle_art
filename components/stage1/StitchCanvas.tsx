@@ -1371,27 +1371,33 @@ export function StitchCanvas({
       </div>
 
       {/* Excalidraw Left Properties Inspector */}
-      {selectedItemsObjects.length > 0 && (
-        <CanvasInspector
-          selectedItems={selectedItemsObjects}
-          properties={{
-            strokeColor: activeColor,
-            strokeWidth: 3,
-            roughness: "clean",
-            fillStyle: "solid",
-            opacity: 1,
-          }}
-          onUpdateProperties={handleUpdateProperties}
-          onDelete={handleDeleteSelected}
-          onDuplicate={handleDuplicateSelected}
-          onBringToFront={handleBringToFront}
-          onSendToBack={handleSendToBack}
-          onBringForward={handleBringToFront}
-          onSendBackward={handleSendToBack}
-          onAlign={handleAlignSelected}
-          onClose={() => setSelectedItemIds([])}
-        />
-      )}
+      {selectedItemsObjects.length > 0 && (() => {
+        const primary = selectedItemsObjects[0];
+        const pMeta = (primary?.metadata as any) || {};
+        return (
+          <CanvasInspector
+            selectedItems={selectedItemsObjects}
+            properties={{
+              strokeColor: primary?.color || activeColor,
+              strokeWidth: pMeta.strokeWidth ?? 3,
+              roughness: pMeta.roughness || "clean",
+              fillStyle: pMeta.fillStyle || (primary?.type === "shape" ? "solid" : "none"),
+              fillColor: pMeta.fillColor || "transparent",
+              strokeStyle: pMeta.strokeStyle || "solid",
+              opacity: pMeta.opacity ?? 1,
+            }}
+            onUpdateProperties={handleUpdateProperties}
+            onDelete={handleDeleteSelected}
+            onDuplicate={handleDuplicateSelected}
+            onBringToFront={handleBringToFront}
+            onSendToBack={handleSendToBack}
+            onBringForward={handleBringToFront}
+            onSendBackward={handleSendToBack}
+            onAlign={handleAlignSelected}
+            onClose={() => setSelectedItemIds([])}
+          />
+        );
+      })()}
 
       {/* Main Canvas Transformation Plane */}
       <div
