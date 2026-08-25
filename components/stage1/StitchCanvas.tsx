@@ -37,6 +37,10 @@ import {
   Eraser,
   Undo2,
   Redo2,
+  Lock,
+  Unlock,
+  MoreVertical,
+  Sliders,
 } from "lucide-react";
 
 const STICKY_COLORS = [
@@ -144,6 +148,8 @@ export function StitchCanvas({
   const [activeTool, setActiveTool] = useState<
     "select" | "hand" | "sticky" | "text" | "frame" | "pen" | "pencil" | "eraser"
   >("select");
+  const [isLocked, setIsLocked] = useState(false);
+  const [isMoreMenuOpen, setMoreMenuOpen] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [isPanning, setIsPanning] = useState(false);
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
@@ -507,7 +513,7 @@ export function StitchCanvas({
       ) {
         return;
       }
-      if (!isEditable) return;
+      if (!isEditable || isLocked) return;
 
       const rect = containerRef.current?.getBoundingClientRect();
       const centerX = rect ? rect.width / 2 : window.innerWidth / 2;
@@ -605,9 +611,9 @@ export function StitchCanvas({
 
     window.addEventListener("paste", handlePaste);
     return () => window.removeEventListener("paste", handlePaste);
-  }, [projectId, stage, isEditable, screenToCanvas, addItemMutation]);
+  }, [projectId, stage, isEditable, isLocked, screenToCanvas, addItemMutation]);
 
-  // KEYBOARD COMMANDS (P, F, E, V, Delete, Undo)
+  // KEYBOARD COMMANDS (1..9, 0, P, F, E, V, Delete, Undo)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (
@@ -619,7 +625,7 @@ export function StitchCanvas({
 
       // Delete selected item
       if (e.key === "Delete" || e.key === "Backspace") {
-        if (selectedItemId && isEditable) {
+        if (selectedItemId && isEditable && !isLocked) {
           e.preventDefault();
           const itemToDelete = items?.find((i) => i._id === selectedItemId);
           deleteItemMutation({ itemId: selectedItemId as any });
@@ -650,25 +656,28 @@ export function StitchCanvas({
         return;
       }
 
-      // Tool shortcuts
-      if (e.key === "p" || e.key === "P") {
-        e.preventDefault();
-        setActiveTool((prev) => (prev === "pen" ? "pencil" : "pen"));
-      } else if (e.key === "f" || e.key === "F") {
-        e.preventDefault();
-        handleAddFrame();
-      } else if (e.key === "e" || e.key === "E") {
-        e.preventDefault();
-        setActiveTool("eraser");
-      } else if (e.key === "v" || e.key === "V" || e.key === "Escape") {
+      // Number Shortcuts matching reference UI (1: Select, 2: Frame, 7: Pen, 8: Sticky, 9: Media, 0: Eraser)
+      if (e.key === "1" || e.key === "v" || e.key === "V" || e.key === "Escape") {
         e.preventDefault();
         setActiveTool("select");
+      } else if (e.key === "2" || e.key === "f" || e.key === "F") {
+        e.preventDefault();
+        handleAddFrame();
+      } else if (e.key === "7" || e.key === "p" || e.key === "P") {
+        e.preventDefault();
+        setActiveTool((prev) => (prev === "pen" ? "pencil" : "pen"));
+      } else if (e.key === "8" || e.key === "s" || e.key === "S" || e.key === "t" || e.key === "T") {
+        e.preventDefault();
+        handleAddSticky();
+      } else if (e.key === "9") {
+        e.preventDefault();
+        fileInputRef.current?.click();
+      } else if (e.key === "0" || e.key === "e" || e.key === "E") {
+        e.preventDefault();
+        setActiveTool("eraser");
       } else if (e.key === "h" || e.key === "H") {
         e.preventDefault();
         setActiveTool("hand");
-      } else if (e.key === "s" || e.key === "S") {
-        e.preventDefault();
-        handleAddSticky();
       }
     };
 
@@ -677,6 +686,7 @@ export function StitchCanvas({
   }, [
     selectedItemId,
     isEditable,
+    isLocked,
     items,
     deleteItemMutation,
     handleAddFrame,
@@ -687,7 +697,7 @@ export function StitchCanvas({
 
   // Mouse Gestures (Desktop)
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.button === 1 || activeTool === "hand") {
+    if (e.button === 1 || activeTool === "hand" || isLocked) {
       setIsPanning(true);
       panStartRef.current = { x: e.clientX - transform.x, y: e.clientY - transform.y };
       return;
@@ -710,7 +720,7 @@ export function StitchCanvas({
     item: any,
     handle: ResizeHandleType
   ) => {
-    if (!isEditable) return;
+    if (!isEditable || isLocked) return;
     e.stopPropagation();
     e.preventDefault();
 
@@ -751,7 +761,7 @@ export function StitchCanvas({
     }
 
     // Active Resizing
-    if (resizingState && isEditable) {
+    if (resizingState && isEditable && !isLocked) {
       const dx = (e.clientX - resizingState.startX) / transform.scale;
       const dy = (e.clientY - resizingState.startY) / transform.scale;
 
@@ -793,7 +803,7 @@ export function StitchCanvas({
     }
 
     // Active Dragging
-    if (draggedItemId && isEditable) {
+    if (draggedItemId && isEditable && !isLocked) {
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect) return;
 
@@ -949,7 +959,7 @@ export function StitchCanvas({
       }
 
       // Mobile Resizing
-      if (resizingState && isEditable) {
+      if (resizingState && isEditable && !isLocked) {
         const dx = (t.clientX - resizingState.startX) / transform.scale;
         const dy = (t.clientY - resizingState.startY) / transform.scale;
 
@@ -991,7 +1001,7 @@ export function StitchCanvas({
       }
 
       // Mobile Dragging Item
-      if (draggedItemId && isEditable) {
+      if (draggedItemId && isEditable && !isLocked) {
         const rect = containerRef.current?.getBoundingClientRect();
         if (!rect) return;
 
@@ -1061,7 +1071,7 @@ export function StitchCanvas({
     item: any,
     handle: ResizeHandleType
   ) => {
-    if (!isEditable || e.touches.length > 1) return;
+    if (!isEditable || isLocked || e.touches.length > 1) return;
     e.stopPropagation();
 
     const t = e.touches[0];
@@ -1087,7 +1097,7 @@ export function StitchCanvas({
   // Handle Multi-File Drop onto Canvas
   const handleFileDrop = async (e: React.DragEvent) => {
     e.preventDefault();
-    if (!isEditable) return;
+    if (!isEditable || isLocked) return;
 
     const files = Array.from(e.dataTransfer.files);
     if (files.length === 0) return;
@@ -1228,9 +1238,8 @@ export function StitchCanvas({
         className="hidden"
       />
 
-      {/* TOP BAR: Info pill & Mode switch (Traffic dots removed) */}
-      <div className="absolute top-3 left-3 right-3 sm:right-auto z-30 flex items-center justify-between sm:justify-start gap-2 pointer-events-none">
-        {/* Stage Status Badge */}
+      {/* TOP BAR: Info pill on left */}
+      <div className="absolute top-3 left-3 z-30 flex items-center gap-2 pointer-events-none">
         <div className="flex items-center gap-2 px-3.5 py-1.5 bg-[#1C1916]/95 backdrop-blur-md border border-[#2E2924] rounded-xl text-xs font-mono text-[#EDE6DD] shadow-lg pointer-events-auto max-w-[calc(100%-48px)] sm:max-w-none truncate">
           <span className="font-semibold truncate text-[#A3E635]">
             {stage === "stage2" ? "Stage 2" : "Stage 1"}
@@ -1244,46 +1253,39 @@ export function StitchCanvas({
           </span>
         </div>
 
-        {/* Mobile Fullscreen Toggle on top-right */}
-        <button
-          onClick={toggleFullscreen}
-          title={isFullscreen ? "Exit Fullscreen" : "Fullscreen Canvas"}
-          className="sm:hidden p-2 rounded-xl bg-[#1C1916]/90 backdrop-blur-md border border-[#2E2924] text-[#EDE6DD] shadow-lg pointer-events-auto active:scale-95 transition-transform"
-        >
-          {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4 text-[#A3E635]" />}
-        </button>
-
         {onSwitchToPosts && (
           <button
             onClick={onSwitchToPosts}
-            className="hidden md:flex items-center gap-1.5 px-3.5 py-1.5 bg-[#241F1B]/90 hover:bg-[#2F2923] backdrop-blur-md border border-[#3E3832] hover:border-[#A3E635] rounded-xl text-xs font-mono text-[#EDE6DD] transition-all shadow-lg pointer-events-auto"
+            className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-[#241F1B]/90 hover:bg-[#2F2923] backdrop-blur-md border border-[#3E3832] hover:border-[#A3E635] rounded-xl text-xs font-mono text-[#EDE6DD] transition-all shadow-lg pointer-events-auto"
           >
             <span>Switch to Iteration Posts 📝</span>
           </button>
         )}
       </div>
 
-      {/* DESKTOP FLOATING TOOL PALETTE (Top-Right, sm:flex) */}
+      {/* FLOATING TOP-CENTER/RIGHT EXCALIDRAW-STYLE TOOLBAR WITH NUMBER SUBSCRIPTS */}
       {isEditable && (
-        <div className="hidden sm:flex absolute top-3 right-3 z-30 items-center gap-1 p-1.5 bg-[#1C1916]/95 backdrop-blur-md border border-[#2E2924] rounded-2xl shadow-2xl">
-          {/* Select Tool */}
+        <div className="hidden sm:flex absolute top-3 right-3 z-30 items-center gap-1 p-1 bg-[#1C1916]/95 backdrop-blur-md border border-[#2E2924] rounded-2xl shadow-2xl">
+          {/* 1. Lock/Unlock Tool */}
           <button
-            onClick={() => setActiveTool("select")}
-            title="Select & Move (V / Esc)"
-            className={`p-2 rounded-xl transition-all ${
-              activeTool === "select"
-                ? "bg-[#A3E635] text-[#171512] shadow-sm font-bold"
+            onClick={() => setIsLocked(!isLocked)}
+            title={isLocked ? "Unlock Canvas" : "Lock Canvas Editing"}
+            className={`relative flex items-center justify-center w-9 h-9 rounded-xl transition-all ${
+              isLocked
+                ? "bg-[#E08B3F]/20 text-[#E08B3F] border border-[#E08B3F]/40"
                 : "text-[#8A837A] hover:text-[#EDE6DD] hover:bg-[#241F1B]"
             }`}
           >
-            <MousePointer className="w-4 h-4" />
+            {isLocked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
           </button>
 
-          {/* Pan Tool */}
+          <div className="w-[1px] h-5 bg-[#2E2924] mx-0.5" />
+
+          {/* 2. Hand / Pan Tool (H) */}
           <button
             onClick={() => setActiveTool("hand")}
-            title="Pan Canvas (H / Space+Drag)"
-            className={`p-2 rounded-xl transition-all ${
+            title="Hand / Pan Tool (H or Space+Drag)"
+            className={`relative flex items-center justify-center w-9 h-9 rounded-xl transition-all ${
               activeTool === "hand"
                 ? "bg-[#A3E635] text-[#171512] shadow-sm font-bold"
                 : "text-[#8A837A] hover:text-[#EDE6DD] hover:bg-[#241F1B]"
@@ -1292,26 +1294,63 @@ export function StitchCanvas({
             <Hand className="w-4 h-4" />
           </button>
 
-          <div className="w-[1px] h-5 bg-[#2E2924] mx-0.5" />
+          {/* 3. Selection Pointer (1 or V) */}
+          <button
+            onClick={() => setActiveTool("select")}
+            title="Selection (1 or V)"
+            className={`relative flex items-center justify-center w-9 h-9 rounded-xl transition-all ${
+              activeTool === "select"
+                ? "bg-[#A3E635] text-[#171512] shadow-sm font-bold"
+                : "text-[#8A837A] hover:text-[#EDE6DD] hover:bg-[#241F1B]"
+            }`}
+          >
+            <MousePointer className="w-4 h-4" />
+            <span
+              className={`absolute bottom-0.5 right-1 text-[9px] font-mono leading-none ${
+                activeTool === "select" ? "text-[#171512]/80 font-bold" : "text-[#736B62]"
+              }`}
+            >
+              1
+            </span>
+          </button>
 
-          {/* Freehand Pen Tool */}
+          {/* 4. Frame / Rectangle (2 or F) */}
+          <button
+            onClick={handleAddFrame}
+            title="Section Frame (2 or F)"
+            className="relative flex items-center justify-center w-9 h-9 rounded-xl text-[#8A837A] hover:text-[#A9D8FF] hover:bg-[#241F1B] transition-all"
+          >
+            <Square className="w-4 h-4" />
+            <span className="absolute bottom-0.5 right-1 text-[9px] font-mono leading-none text-[#736B62]">
+              2
+            </span>
+          </button>
+
+          {/* 5. Freehand Pen (7 or P) */}
           <button
             onClick={() => setActiveTool("pen")}
-            title="Pen Tool (P)"
-            className={`p-2 rounded-xl transition-all ${
+            title="Smooth Pen (7 or P)"
+            className={`relative flex items-center justify-center w-9 h-9 rounded-xl transition-all ${
               activeTool === "pen"
                 ? "bg-[#A3E635] text-[#171512] shadow-sm font-bold"
                 : "text-[#8A837A] hover:text-[#EDE6DD] hover:bg-[#241F1B]"
             }`}
           >
             <Pen className="w-4 h-4" />
+            <span
+              className={`absolute bottom-0.5 right-1 text-[9px] font-mono leading-none ${
+                activeTool === "pen" ? "text-[#171512]/80 font-bold" : "text-[#736B62]"
+              }`}
+            >
+              7
+            </span>
           </button>
 
-          {/* Pencil Tool */}
+          {/* 6. Pencil Sketch (P) */}
           <button
             onClick={() => setActiveTool("pencil")}
             title="Pencil Sketch Tool"
-            className={`p-2 rounded-xl transition-all ${
+            className={`relative flex items-center justify-center w-9 h-9 rounded-xl transition-all ${
               activeTool === "pencil"
                 ? "bg-[#A3E635] text-[#171512] shadow-sm font-bold"
                 : "text-[#8A837A] hover:text-[#EDE6DD] hover:bg-[#241F1B]"
@@ -1320,17 +1359,48 @@ export function StitchCanvas({
             <Pencil className="w-4 h-4" />
           </button>
 
-          {/* Eraser Tool */}
+          {/* 7. Sticky / Text (8 or S / T) */}
+          <button
+            onClick={handleAddSticky}
+            title="Sticky Note / Text (8 or S)"
+            className="relative flex items-center justify-center w-9 h-9 rounded-xl text-[#8A837A] hover:text-[#FFE066] hover:bg-[#241F1B] transition-all"
+          >
+            <StickyNote className="w-4 h-4" />
+            <span className="absolute bottom-0.5 right-1 text-[9px] font-mono leading-none text-[#736B62]">
+              8
+            </span>
+          </button>
+
+          {/* 8. Media / Image Upload (9) */}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            title="Upload Media (9 or Cmd+V)"
+            className="relative flex items-center justify-center w-9 h-9 rounded-xl text-[#8A837A] hover:text-[#A3E635] hover:bg-[#241F1B] transition-all"
+          >
+            <ImageIcon className="w-4 h-4" />
+            <span className="absolute bottom-0.5 right-1 text-[9px] font-mono leading-none text-[#736B62]">
+              9
+            </span>
+          </button>
+
+          {/* 9. Eraser (0 or E) */}
           <button
             onClick={() => setActiveTool("eraser")}
-            title="Eraser Tool (E)"
-            className={`p-2 rounded-xl transition-all ${
+            title="Eraser (0 or E)"
+            className={`relative flex items-center justify-center w-9 h-9 rounded-xl transition-all ${
               activeTool === "eraser"
                 ? "bg-red-500/25 text-red-400 border border-red-500/40 shadow-sm font-bold"
                 : "text-[#8A837A] hover:text-red-400 hover:bg-[#241F1B]"
             }`}
           >
             <Eraser className="w-4 h-4" />
+            <span
+              className={`absolute bottom-0.5 right-1 text-[9px] font-mono leading-none ${
+                activeTool === "eraser" ? "text-red-400 font-bold" : "text-[#736B62]"
+              }`}
+            >
+              0
+            </span>
           </button>
 
           {/* Pen Color Selector Dropdown */}
@@ -1338,7 +1408,7 @@ export function StitchCanvas({
             <button
               onClick={() => setPenColorPickerOpen(!isPenColorPickerOpen)}
               title="Stroke Color"
-              className="p-2 rounded-xl hover:bg-[#241F1B] transition-colors flex items-center gap-1"
+              className="flex items-center justify-center w-8 h-8 rounded-xl hover:bg-[#241F1B] transition-colors"
             >
               <div
                 className="w-3.5 h-3.5 rounded-full border border-black/40 shadow-sm"
@@ -1349,7 +1419,7 @@ export function StitchCanvas({
             {isPenColorPickerOpen && (
               <div
                 onMouseLeave={() => setPenColorPickerOpen(false)}
-                className="absolute right-0 top-11 p-2 bg-[#1C1A17] border border-[#2E2924] rounded-xl shadow-2xl flex items-center gap-1.5 z-50 animate-fade-in"
+                className="absolute right-0 top-10 p-2 bg-[#1C1A17] border border-[#2E2924] rounded-xl shadow-2xl flex items-center gap-1.5 z-50 animate-fade-in"
               >
                 {PEN_COLORS.map((col) => (
                   <button
@@ -1373,101 +1443,114 @@ export function StitchCanvas({
 
           <div className="w-[1px] h-5 bg-[#2E2924] mx-0.5" />
 
-          {/* Add Sticky Note */}
-          <button
-            onClick={handleAddSticky}
-            title="Add Sticky Note (S)"
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#241F1B] hover:bg-[#2F2923] text-xs font-sans text-[#EDE6DD] border border-[#3E3832] transition-colors"
-          >
-            <StickyNote className="w-3.5 h-3.5 text-[#FFE066]" />
-            <span>Sticky</span>
-          </button>
-
-          {/* Upload Any Media */}
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            title="Upload Media / Paste with Cmd+V"
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#241F1B] hover:bg-[#2F2923] text-xs font-sans text-[#EDE6DD] border border-[#3E3832] transition-colors"
-          >
-            <Upload className="w-3.5 h-3.5 text-[#A3E635]" />
-            <span>Media</span>
-          </button>
-
-          {/* Add Section Frame */}
-          <button
-            onClick={handleAddFrame}
-            title="Add Section Frame Group (F)"
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#241F1B] hover:bg-[#2F2923] text-xs font-sans text-[#EDE6DD] border border-[#3E3832] transition-colors"
-          >
-            <Square className="w-3.5 h-3.5 text-[#A9D8FF]" />
-            <span>Frame</span>
-          </button>
-
-          <div className="w-[1px] h-5 bg-[#2E2924] mx-0.5" />
-
-          {/* Undo Button */}
+          {/* Undo & Redo */}
           <button
             onClick={handleUndo}
             disabled={undoStack.length === 0}
             title="Undo (Cmd+Z)"
-            className="p-2 text-[#8A837A] hover:text-[#EDE6DD] hover:bg-[#241F1B] rounded-xl transition-colors disabled:opacity-30"
+            className="flex items-center justify-center w-8 h-8 text-[#8A837A] hover:text-[#EDE6DD] hover:bg-[#241F1B] rounded-xl transition-colors disabled:opacity-30"
           >
-            <Undo2 className="w-4 h-4" />
+            <Undo2 className="w-3.5 h-3.5" />
           </button>
-
-          {/* Redo Button */}
           <button
             onClick={handleRedo}
             disabled={redoStack.length === 0}
             title="Redo (Cmd+Shift+Z / Cmd+Y)"
-            className="p-2 text-[#8A837A] hover:text-[#EDE6DD] hover:bg-[#241F1B] rounded-xl transition-colors disabled:opacity-30"
+            className="flex items-center justify-center w-8 h-8 text-[#8A837A] hover:text-[#EDE6DD] hover:bg-[#241F1B] rounded-xl transition-colors disabled:opacity-30"
           >
-            <Redo2 className="w-4 h-4" />
+            <Redo2 className="w-3.5 h-3.5" />
           </button>
 
           <div className="w-[1px] h-5 bg-[#2E2924] mx-0.5" />
 
-          {/* Fit to Screen (Overview) */}
-          <button
-            onClick={fitToScreen}
-            title="Fit All Items into Screen"
-            className="p-2 text-[#8A837A] hover:text-[#A3E635] hover:bg-[#241F1B] rounded-xl transition-colors"
-          >
-            <Scan className="w-4 h-4" />
-          </button>
+          {/* More Actions Menu (⋮) */}
+          <div className="relative">
+            <button
+              onClick={() => setMoreMenuOpen(!isMoreMenuOpen)}
+              title="More Actions & Canvas Controls"
+              className={`flex items-center justify-center w-8 h-8 rounded-xl transition-colors ${
+                isMoreMenuOpen
+                  ? "bg-[#2A2521] text-[#EDE6DD]"
+                  : "text-[#8A837A] hover:text-[#EDE6DD] hover:bg-[#241F1B]"
+              }`}
+            >
+              <MoreVertical className="w-4 h-4" />
+            </button>
 
-          {/* Zoom controls */}
-          <button
-            onClick={() => setTransform((p) => ({ ...p, scale: Math.min(p.scale * 1.2, 2.5) }))}
-            className="p-2 text-[#8A837A] hover:text-[#EDE6DD] hover:bg-[#241F1B] rounded-xl transition-colors"
-          >
-            <ZoomIn className="w-4 h-4" />
-          </button>
-          <span className="text-[10px] font-mono text-[#7E776F] px-1">
-            {Math.round(transform.scale * 100)}%
-          </span>
-          <button
-            onClick={() => setTransform((p) => ({ ...p, scale: Math.max(p.scale * 0.8, 0.25) }))}
-            className="p-2 text-[#8A837A] hover:text-[#EDE6DD] hover:bg-[#241F1B] rounded-xl transition-colors"
-          >
-            <ZoomOut className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setTransform({ x: 80, y: 60, scale: 0.9 })}
-            title="Reset Canvas Position"
-            className="p-2 text-[#8A837A] hover:text-[#EDE6DD] hover:bg-[#241F1B] rounded-xl transition-colors"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-          </button>
+            {isMoreMenuOpen && (
+              <div
+                onMouseLeave={() => setMoreMenuOpen(false)}
+                className="absolute right-0 top-10 w-48 p-1.5 bg-[#1C1A17] border border-[#2E2924] rounded-2xl shadow-2xl z-50 animate-fade-in space-y-1 text-xs font-mono"
+              >
+                <button
+                  onClick={() => {
+                    fitToScreen();
+                    setMoreMenuOpen(false);
+                  }}
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[#EDE6DD] hover:bg-[#241F1B] transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    <Scan className="w-3.5 h-3.5 text-[#A3E635]" />
+                    <span>Fit to Screen</span>
+                  </span>
+                  <span className="text-[10px] text-[#736B62]">Shift+1</span>
+                </button>
 
-          {/* Fullscreen desktop toggle */}
-          <button
-            onClick={toggleFullscreen}
-            title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
-            className="p-2 text-[#8A837A] hover:text-[#A3E635] hover:bg-[#241F1B] rounded-xl transition-colors"
-          >
-            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-          </button>
+                <div className="flex items-center justify-between px-2.5 py-1 bg-[#141210] rounded-lg border border-[#2E2924]">
+                  <button
+                    onClick={() =>
+                      setTransform((p) => ({ ...p, scale: Math.max(p.scale * 0.8, 0.25) }))
+                    }
+                    className="p-1 text-[#8A837A] hover:text-[#EDE6DD]"
+                    title="Zoom Out"
+                  >
+                    <ZoomOut className="w-3.5 h-3.5" />
+                  </button>
+                  <span className="text-[11px] text-[#A3E635]">
+                    {Math.round(transform.scale * 100)}%
+                  </span>
+                  <button
+                    onClick={() =>
+                      setTransform((p) => ({ ...p, scale: Math.min(p.scale * 1.2, 2.5) }))
+                    }
+                    className="p-1 text-[#8A837A] hover:text-[#EDE6DD]"
+                    title="Zoom In"
+                  >
+                    <ZoomIn className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setTransform({ x: 80, y: 60, scale: 0.9 });
+                    setMoreMenuOpen(false);
+                  }}
+                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[#8A837A] hover:text-[#EDE6DD] hover:bg-[#241F1B] transition-colors"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Reset View</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    toggleFullscreen();
+                    setMoreMenuOpen(false);
+                  }}
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[#EDE6DD] hover:bg-[#241F1B] transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    {isFullscreen ? (
+                      <Minimize2 className="w-3.5 h-3.5 text-[#A3E635]" />
+                    ) : (
+                      <Maximize2 className="w-3.5 h-3.5 text-[#A3E635]" />
+                    )}
+                    <span>{isFullscreen ? "Exit Fullscreen" : "Fullscreen"}</span>
+                  </span>
+                  <span className="text-[10px] text-[#736B62]">F11</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -1539,7 +1622,7 @@ export function StitchCanvas({
               };
 
               const handleItemMouseDown = (e: React.MouseEvent) => {
-                if (activeTool === "hand" || e.button === 1) return;
+                if (activeTool === "hand" || e.button === 1 || isLocked) return;
 
                 if (activeTool === "eraser") {
                   e.stopPropagation();
@@ -1570,7 +1653,7 @@ export function StitchCanvas({
               };
 
               const handleItemTouchStart = (e: React.TouchEvent) => {
-                if (activeTool === "hand" || e.touches.length > 1) return;
+                if (activeTool === "hand" || e.touches.length > 1 || isLocked) return;
 
                 if (activeTool === "eraser") {
                   e.stopPropagation();
@@ -1603,7 +1686,7 @@ export function StitchCanvas({
 
               // Reusable Touch-Friendly Resize Handles Overlay
               const renderResizeHandles = () => {
-                if (!isSelected || !isEditable) return null;
+                if (!isSelected || !isEditable || isLocked) return null;
                 return (
                   <>
                     <div className="absolute -inset-1 border-2 border-[#A3E635] rounded-xl pointer-events-none z-30 shadow-lg" />
@@ -1681,7 +1764,7 @@ export function StitchCanvas({
                       />
                     </svg>
 
-                    {isSelected && isEditable && (
+                    {isSelected && isEditable && !isLocked && (
                       <div className="absolute -top-3 -right-3 flex items-center gap-1 z-50 bg-[#171512] p-1 rounded-full border border-[#3E3832] shadow-md">
                         <button
                           onClick={(e) => {
@@ -1724,7 +1807,7 @@ export function StitchCanvas({
                       <span className="text-xs font-mono font-semibold text-[#EDE6DD] truncate">
                         {item.title || "Section Frame"}
                       </span>
-                      {isSelected && isEditable && (
+                      {isSelected && isEditable && !isLocked && (
                         <button
                           onClick={() => deleteItemMutation({ itemId: item._id as any })}
                           className="p-1 text-red-400 hover:text-red-300 pointer-events-auto"
@@ -1762,7 +1845,7 @@ export function StitchCanvas({
                         : "hover:scale-[1.005]"
                     }`}
                   >
-                    {isSelected && isEditable && (
+                    {isSelected && isEditable && !isLocked && (
                       <div className="absolute -top-3 -right-3 flex items-center gap-1 z-50 bg-[#171512] p-1 rounded-full border border-[#3E3832] shadow-md">
                         <button
                           onClick={(e) => {
@@ -1775,7 +1858,7 @@ export function StitchCanvas({
                         </button>
                       </div>
                     )}
-                    {isEditable ? (
+                    {isEditable && !isLocked ? (
                       <textarea
                         onFocus={() => setSelectedItemId(item._id)}
                         onClick={(e) => {
@@ -1822,7 +1905,7 @@ export function StitchCanvas({
                         : "border-[#342D26] hover:border-[#4E443A]"
                     }`}
                   >
-                    {isSelected && isEditable && (
+                    {isSelected && isEditable && !isLocked && (
                       <div className="absolute top-2 right-2 flex items-center gap-1 z-50 bg-[#171512]/90 p-1 rounded-lg border border-[#3E3832]">
                         <button
                           onClick={(e) => {
@@ -1873,7 +1956,7 @@ export function StitchCanvas({
                         <Music className="w-4 h-4" />
                         <span className="truncate max-w-[180px]">{item.title || "Audio Memo"}</span>
                       </div>
-                      {isSelected && isEditable && (
+                      {isSelected && isEditable && !isLocked && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -1910,7 +1993,7 @@ export function StitchCanvas({
                       isSelected ? "border-[#A3E635]" : "border-[#342D26]"
                     }`}
                   >
-                    {isSelected && isEditable && (
+                    {isSelected && isEditable && !isLocked && (
                       <div className="absolute top-2 right-2 z-50">
                         <button
                           onClick={(e) => {
@@ -1958,7 +2041,7 @@ export function StitchCanvas({
                           {item.title || "Document.pdf"}
                         </span>
                       </div>
-                      {isSelected && isEditable && (
+                      {isSelected && isEditable && !isLocked && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -1995,7 +2078,7 @@ export function StitchCanvas({
       </div>
 
       {/* MOBILE CONTEXTUAL ACTION BAR */}
-      {selectedItem && isEditable && (
+      {selectedItem && isEditable && !isLocked && (
         <div className="sm:hidden absolute bottom-20 left-4 right-4 z-40 flex items-center justify-between gap-2 p-2 bg-[#1C1916]/95 backdrop-blur-xl border border-[#3E3832] rounded-2xl shadow-2xl animate-fade-in">
           {selectedItem.type === "text_sticky" ? (
             <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 max-w-[calc(100%-80px)] scrollbar-none">
@@ -2049,21 +2132,22 @@ export function StitchCanvas({
         </div>
       )}
 
-      {/* MOBILE FLOATING BOTTOM DOCK */}
+      {/* MOBILE FLOATING BOTTOM DOCK WITH NUMERICAL SUBSCRIPTS */}
       <div className="sm:hidden absolute bottom-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 p-1.5 bg-[#1C1916]/95 backdrop-blur-xl border border-[#2E2924] rounded-2xl shadow-2xl max-w-[calc(100%-24px)] overflow-x-auto">
         {isEditable ? (
           <>
             <div className="flex items-center bg-[#141210] p-0.5 rounded-xl border border-[#2E2924]">
               <button
                 onClick={() => setActiveTool("select")}
-                className={`p-2 rounded-lg transition-all ${
+                className={`relative flex items-center justify-center p-2 rounded-lg transition-all ${
                   activeTool === "select"
                     ? "bg-[#A3E635] text-[#171512] font-bold shadow-sm"
                     : "text-[#8A837A]"
                 }`}
-                title="Select & Move"
+                title="Select (1)"
               >
                 <MousePointer className="w-4 h-4" />
+                <span className="text-[9px] font-mono leading-none ml-0.5 opacity-70">1</span>
               </button>
               <button
                 onClick={() => setActiveTool("hand")}
@@ -2072,7 +2156,7 @@ export function StitchCanvas({
                     ? "bg-[#A3E635] text-[#171512] font-bold shadow-sm"
                     : "text-[#8A837A]"
                 }`}
-                title="Pan Mode"
+                title="Pan Mode (H)"
               >
                 <Hand className="w-4 h-4" />
               </button>
@@ -2081,52 +2165,57 @@ export function StitchCanvas({
             {/* Quick Pen & Eraser for mobile */}
             <button
               onClick={() => setActiveTool("pen")}
-              className={`p-2 rounded-xl border transition-all ${
+              className={`relative flex items-center gap-0.5 p-2 rounded-xl border transition-all ${
                 activeTool === "pen"
                   ? "bg-[#A3E635] text-[#171512] border-[#A3E635]"
                   : "bg-[#241F1B] text-[#8A837A] border-[#3E3832]"
               }`}
-              title="Pen"
+              title="Pen (7)"
             >
               <Pen className="w-4 h-4" />
+              <span className="text-[9px] font-mono leading-none opacity-70">7</span>
             </button>
 
             <button
               onClick={() => setActiveTool("eraser")}
-              className={`p-2 rounded-xl border transition-all ${
+              className={`relative flex items-center gap-0.5 p-2 rounded-xl border transition-all ${
                 activeTool === "eraser"
                   ? "bg-red-500/25 text-red-400 border-red-500/40"
                   : "bg-[#241F1B] text-[#8A837A] border-[#3E3832]"
               }`}
-              title="Eraser"
+              title="Eraser (0)"
             >
               <Eraser className="w-4 h-4" />
+              <span className="text-[9px] font-mono leading-none opacity-70">0</span>
             </button>
 
             <div className="w-[1px] h-5 bg-[#2E2924] mx-0.5" />
 
             <button
               onClick={handleAddSticky}
-              className="flex items-center gap-1 p-2 rounded-xl bg-[#241F1B] active:bg-[#2F2923] text-xs font-mono text-[#EDE6DD] border border-[#3E3832]"
-              title="Add Sticky"
+              className="relative flex items-center gap-0.5 p-2 rounded-xl bg-[#241F1B] active:bg-[#2F2923] text-xs font-mono text-[#EDE6DD] border border-[#3E3832]"
+              title="Add Sticky (8)"
             >
               <StickyNote className="w-4 h-4 text-[#FFE066]" />
+              <span className="text-[9px] font-mono leading-none text-[#736B62]">8</span>
             </button>
 
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-1 p-2 rounded-xl bg-[#241F1B] active:bg-[#2F2923] text-xs font-mono text-[#EDE6DD] border border-[#3E3832]"
-              title="Upload Media"
+              className="relative flex items-center gap-0.5 p-2 rounded-xl bg-[#241F1B] active:bg-[#2F2923] text-xs font-mono text-[#EDE6DD] border border-[#3E3832]"
+              title="Upload Media (9)"
             >
-              <Upload className="w-4 h-4 text-[#A3E635]" />
+              <ImageIcon className="w-4 h-4 text-[#A3E635]" />
+              <span className="text-[9px] font-mono leading-none text-[#736B62]">9</span>
             </button>
 
             <button
               onClick={handleAddFrame}
-              className="flex items-center gap-1 p-2 rounded-xl bg-[#241F1B] active:bg-[#2F2923] text-xs font-mono text-[#EDE6DD] border border-[#3E3832]"
-              title="Add Frame"
+              className="relative flex items-center gap-0.5 p-2 rounded-xl bg-[#241F1B] active:bg-[#2F2923] text-xs font-mono text-[#EDE6DD] border border-[#3E3832]"
+              title="Add Frame (2)"
             >
               <Square className="w-4 h-4 text-[#A9D8FF]" />
+              <span className="text-[9px] font-mono leading-none text-[#736B62]">2</span>
             </button>
 
             {/* Undo Mobile */}
@@ -2172,15 +2261,19 @@ export function StitchCanvas({
       {/* DESKTOP BOTTOM STAGE BAR (sm:flex) */}
       <div className="hidden sm:flex absolute bottom-4 left-4 right-4 z-30 items-center justify-between pointer-events-none">
         <div className="px-3.5 py-1.5 bg-[#171512]/90 backdrop-blur-md border border-[#2E2924] rounded-xl text-xs font-mono text-[#8A837A] pointer-events-auto shadow-lg flex items-center gap-2">
-          <span>P: Pen</span>
+          <span>1: Select</span>
           <span>·</span>
-          <span>F: Frame</span>
+          <span>2: Frame</span>
           <span>·</span>
-          <span>E: Eraser</span>
+          <span>7: Pen</span>
+          <span>·</span>
+          <span>8: Sticky</span>
+          <span>·</span>
+          <span>9: Media</span>
+          <span>·</span>
+          <span>0: Eraser</span>
           <span>·</span>
           <span>Cmd+V: Paste</span>
-          <span>·</span>
-          <span>Del: Delete</span>
           <span>·</span>
           <span>Cmd+Z: Undo</span>
         </div>
