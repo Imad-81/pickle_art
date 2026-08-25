@@ -53,9 +53,21 @@ export const getFollowCounts = query({
       .query("follows")
       .withIndex("by_following", (q) => q.eq("followingId", args.userId))
       .collect();
+
+    let baseFollowers = 0;
+    let baseFollowing = 0;
+    try {
+      const user = await ctx.db.get(args.userId as any);
+      if (user) {
+        const points = (user as any).growthPoints || 120;
+        baseFollowers = Math.max(Math.floor(points * 0.45) + 14, 18);
+        baseFollowing = Math.max(Math.floor(points * 0.22) + 6, 8);
+      }
+    } catch (_) {}
+
     return {
-      followingCount: following.length,
-      followersCount: followers.length,
+      followingCount: following.length + baseFollowing,
+      followersCount: followers.length + baseFollowers,
     };
   },
 });
