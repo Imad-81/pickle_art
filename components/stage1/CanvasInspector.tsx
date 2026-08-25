@@ -100,6 +100,7 @@ export function CanvasInspector({
 
   return (
     <div
+      onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
       className="absolute top-16 left-4 z-40 w-64 bg-[#1C1A17]/95 backdrop-blur-xl border border-[#2E2924] rounded-3xl shadow-2xl p-4 text-xs font-mono text-[#DDD4C8] space-y-4 animate-fade-in pointer-events-auto select-none max-h-[calc(100%-80px)] overflow-y-auto scrollbar-thin"
     >

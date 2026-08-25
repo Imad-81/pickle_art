@@ -75,7 +75,10 @@ export function CanvasMiniMap({
   };
 
   return (
-    <div className="hidden sm:flex flex-col items-end z-30 pointer-events-auto">
+    <div
+      onPointerDown={(e) => e.stopPropagation()}
+      className="hidden sm:flex flex-col items-end z-30 pointer-events-auto"
+    >
       {isExpanded && (
         <div
           onClick={handleMapClick}

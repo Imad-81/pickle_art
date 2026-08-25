@@ -67,8 +67,12 @@ export function CanvasShortcutsModal({ isOpen, onClose }: CanvasShortcutsModalPr
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
+    <div
+      onPointerDown={(e) => e.stopPropagation()}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in"
+    >
       <div
+        onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
         className="relative w-full max-w-2xl bg-[#1C1A17] border border-[#2E2924] rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
       >
