@@ -33,25 +33,11 @@ import {
   Palette,
   Loader2,
   HelpCircle,
-  Download,
-  Copy,
-  Layers,
 } from "lucide-react";
 import { CanvasInspector, ElementProperties } from "./CanvasInspector";
 import { CanvasItemRenderer, ResizeHandleType } from "./CanvasItemRenderer";
 import { CanvasMiniMap } from "./CanvasMiniMap";
 import { CanvasShortcutsModal } from "./CanvasShortcutsModal";
-
-const STICKY_COLORS = [
-  { name: "Yellow", bg: "#FFE066", text: "#4A3B00" },
-  { name: "Pink", bg: "#FFB4C6", text: "#5C0A24" },
-  { name: "Blue", bg: "#A9D8FF", text: "#073763" },
-  { name: "Green", bg: "#B9F6CA", text: "#0B4620" },
-  { name: "Purple", bg: "#E3C9FF", text: "#3B0764" },
-  { name: "Orange", bg: "#FFD0A1", text: "#5C2E00" },
-  { name: "Mint", bg: "#A9F0D1", text: "#063C2C" },
-  { name: "Gray", bg: "#DCDDE3", text: "#2B2C33" },
-];
 
 const PEN_COLORS = [
   { name: "Lime", color: "#A3E635" },
@@ -77,32 +63,44 @@ type ToolType =
   | "frame"
   | "eraser";
 
-interface ResizingState {
-  itemId: string;
-  handle: ResizeHandleType;
-  startX: number;
-  startY: number;
-  initialX: number;
-  initialY: number;
-  initialWidth: number;
-  initialHeight: number;
+interface Point {
+  x: number;
+  y: number;
 }
 
-interface MarqueeState {
-  startX: number;
-  startY: number;
-  currentX: number;
-  currentY: number;
-}
+type InteractionState =
+  | { type: "idle" }
+  | { type: "panning"; startScreenX: number; startScreenY: number; startCamX: number; startCamY: number }
+  | {
+      type: "dragging";
+      startScreenX: number;
+      startScreenY: number;
+      itemStartPositions: Record<string, { x: number; y: number }>;
+      hasMoved: boolean;
+    }
+  | {
+      type: "resizing";
+      itemId: string;
+      handle: ResizeHandleType;
+      startScreenX: number;
+      startScreenY: number;
+      initialX: number;
+      initialY: number;
+      initialWidth: number;
+      initialHeight: number;
+    }
+  | { type: "drawing"; points: Point[] }
+  | { type: "drawing_shape"; tool: ToolType; start: Point; current: Point }
+  | { type: "marquee"; start: Point; current: Point };
 
 interface HistoryAction {
-  type: "add" | "delete" | "transform" | "update" | "style";
+  type: "add" | "delete" | "transform" | "update";
   itemId: string;
   previousState?: any;
   nextState?: any;
 }
 
-function pointsToSvgPath(points: Array<{ x: number; y: number }>) {
+function pointsToSvgPath(points: Point[]) {
   if (!points || points.length === 0) return "";
   if (points.length === 1) return `M ${points[0].x} ${points[0].y} L ${points[0].x + 0.1} ${points[0].y + 0.1}`;
   let d = `M ${points[0].x} ${points[0].y}`;
@@ -159,7 +157,7 @@ export function StitchCanvas({
   const deleteStage1Item = useMutation(api.stage1.deleteItem);
   const deleteStage2Item = useMutation(api.stage2.deleteCanvasItem);
 
-  // Type-safe wrapped mutations
+  // Type-safe mutations
   const executeAddItem = useCallback(
     async (args: any): Promise<string> => {
       if (stage === "stage2") {
@@ -172,7 +170,7 @@ export function StitchCanvas({
   );
 
   const executeUpdateTransform = useCallback(
-    async (args: { itemId: string; x: number; y: number; width?: number; height?: number; rotation?: number }) => {
+    async (args: { itemId: string; x: number; y: number; width?: number; height?: number; rotation?: number; zIndex?: number }) => {
       if (stage === "stage2") {
         await updateStage2Transform(args as any);
       } else {
@@ -183,7 +181,7 @@ export function StitchCanvas({
   );
 
   const executeUpdateContent = useCallback(
-    async (args: { itemId: string; content: string }) => {
+    async (args: { itemId: string; content?: string; title?: string; color?: string; metadata?: any }) => {
       if (stage === "stage2") {
         await updateStage2Content(args as any);
       } else {
@@ -204,7 +202,7 @@ export function StitchCanvas({
     [stage, deleteStage2Item, deleteStage1Item]
   );
 
-  // Active Tool & Mode
+  // State
   const [activeTool, setActiveTool] = useState<ToolType>("select");
   const [activeColor, setActiveColor] = useState("#A3E635");
   const [activeStickyColor, setActiveStickyColor] = useState("#FFE066");
@@ -215,44 +213,29 @@ export function StitchCanvas({
   const [showColorPalette, setShowColorPalette] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
 
-  // Multi-Selection State
+  // Selection
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
-  const [marqueeSelection, setMarqueeSelection] = useState<MarqueeState | null>(null);
 
-  // Undo / Redo Stacks
+  // Undo / Redo
   const [undoStack, setUndoStack] = useState<HistoryAction[]>([]);
   const [redoStack, setRedoStack] = useState<HistoryAction[]>([]);
 
-  // Infinite Camera Transform
+  // Infinite Camera
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
-  const [isPanning, setIsPanning] = useState(false);
-  const panStartRef = useRef({ x: 0, y: 0 });
   const isSpacePressedRef = useRef(false);
 
-  // Dragging & Resizing States
-  const [draggingItemIds, setDraggingItemIds] = useState<string[]>([]);
-  const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
-  const [itemStartPositions, setItemStartPositions] = useState<Record<string, { x: number; y: number }>>({});
-  const [resizingState, setResizingState] = useState<ResizingState | null>(null);
+  // Interaction State Machine
+  const [interaction, setInteraction] = useState<InteractionState>({ type: "idle" });
+  const interactionRef = useRef<InteractionState>(interaction);
+  interactionRef.current = interaction;
 
-  // Freehand Drawing Live Stroke Points
-  const [drawingPoints, setDrawingPoints] = useState<Array<{ x: number; y: number }>>([]);
-  const [isDrawing, setIsDrawing] = useState(false);
-
-  // Shape Creation Drag Preview
-  const [shapeDragStart, setShapeDragStart] = useState<{ x: number; y: number } | null>(null);
-  const [shapeDragCurrent, setShapeDragCurrent] = useState<{ x: number; y: number } | null>(null);
-
-  // Local Dimensions for smooth dragging & resizing without network lag
+  // Local Dimensions
   const [localDimensions, setLocalDimensions] = useState<
     Record<string, { x: number; y: number; width: number; height: number }>
   >({});
 
-  // Refs
   const containerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Container viewport dimensions
   const [containerSize, setContainerSize] = useState({ width: 1200, height: 800 });
 
   useEffect(() => {
@@ -269,13 +252,13 @@ export function StitchCanvas({
     return () => window.removeEventListener("resize", updateSize);
   }, []);
 
-  // Sync server items into local dimensions if not currently manipulating
+  // Sync server items
   useEffect(() => {
     if (!items) return;
     setLocalDimensions((prev) => {
       const next = { ...prev };
       items.forEach((item) => {
-        if (!next[item._id] || (draggingItemIds.length === 0 && !resizingState)) {
+        if (interactionRef.current.type === "idle" || !next[item._id]) {
           next[item._id] = {
             x: item.x,
             y: item.y,
@@ -286,11 +269,11 @@ export function StitchCanvas({
       });
       return next;
     });
-  }, [items, draggingItemIds, resizingState]);
+  }, [items]);
 
-  // Coordinate Conversion Helpers
+  // Coordinate Conversion
   const screenToCanvas = useCallback(
-    (screenX: number, screenY: number) => {
+    (screenX: number, screenY: number): Point => {
       if (!containerRef.current) return { x: 0, y: 0 };
       const rect = containerRef.current.getBoundingClientRect();
       const x = (screenX - rect.left - transform.x) / transform.scale;
@@ -300,7 +283,7 @@ export function StitchCanvas({
     [transform]
   );
 
-  // Zoom to point
+  // Zoom Helpers
   const zoomToPoint = useCallback(
     (targetScale: number, centerX: number, centerY: number) => {
       const clampedScale = Math.min(Math.max(targetScale, 0.2), 3);
@@ -317,7 +300,6 @@ export function StitchCanvas({
     [transform]
   );
 
-  // Fit to screen
   const handleFitToScreen = useCallback(() => {
     if (!items || items.length === 0 || !containerRef.current) {
       setTransform({ x: 0, y: 0, scale: 1 });
@@ -355,22 +337,7 @@ export function StitchCanvas({
     });
   }, [items, localDimensions]);
 
-  // Navigate to Canvas Point (from MiniMap)
-  const handleNavigateToPoint = useCallback(
-    (canvasX: number, canvasY: number) => {
-      if (!containerRef.current) return;
-      const cw = containerRef.current.clientWidth;
-      const ch = containerRef.current.clientHeight;
-      setTransform((prev) => ({
-        ...prev,
-        x: cw / 2 - canvasX * prev.scale,
-        y: ch / 2 - canvasY * prev.scale,
-      }));
-    },
-    []
-  );
-
-  // UNDO & REDO Logic
+  // Undo / Redo
   const handleUndo = useCallback(async () => {
     if (undoStack.length === 0) return;
     const action = undoStack[undoStack.length - 1];
@@ -419,23 +386,23 @@ export function StitchCanvas({
     }
   }, [redoStack, executeAddItem, executeDelete, executeUpdateTransform]);
 
-  // DELETE SELECTED
+  // Delete
   const handleDeleteSelected = useCallback(async () => {
     if (selectedItemIds.length === 0 || !isEditable || isLocked) return;
     for (const id of selectedItemIds) {
-      const itemToDelete = items?.find((it) => it._id === id);
-      if (itemToDelete) {
+      const item = items?.find((it) => it._id === id);
+      if (item) {
         setUndoStack((prev) => [
           ...prev,
           {
             type: "delete",
             itemId: id,
             previousState: {
-              ...itemToDelete,
-              x: localDimensions[id]?.x ?? itemToDelete.x,
-              y: localDimensions[id]?.y ?? itemToDelete.y,
-              width: localDimensions[id]?.width ?? itemToDelete.width,
-              height: localDimensions[id]?.height ?? itemToDelete.height,
+              ...item,
+              x: localDimensions[id]?.x ?? item.x,
+              y: localDimensions[id]?.y ?? item.y,
+              width: localDimensions[id]?.width ?? item.width,
+              height: localDimensions[id]?.height ?? item.height,
             },
           },
         ]);
@@ -445,7 +412,7 @@ export function StitchCanvas({
     setSelectedItemIds([]);
   }, [selectedItemIds, isEditable, isLocked, items, localDimensions, executeDelete]);
 
-  // DUPLICATE SELECTED
+  // Duplicate
   const handleDuplicateSelected = useCallback(async () => {
     if (selectedItemIds.length === 0 || !isEditable || isLocked || !items) return;
     const newSelected: string[] = [];
@@ -458,8 +425,8 @@ export function StitchCanvas({
         type: item.type,
         content: item.content,
         title: item.title ? `${item.title} (Copy)` : undefined,
-        x: dim.x + 30,
-        y: dim.y + 30,
+        x: dim.x + 25,
+        y: dim.y + 25,
         width: dim.width,
         height: dim.height,
         color: item.color,
@@ -472,7 +439,7 @@ export function StitchCanvas({
     setSelectedItemIds(newSelected);
   }, [selectedItemIds, isEditable, isLocked, items, localDimensions, projectId, executeAddItem]);
 
-  // UPDATE PROPERTIES (from Inspector)
+  // Update Properties from Inspector
   const handleUpdateProperties = useCallback(
     async (newProps: Partial<ElementProperties>) => {
       if (selectedItemIds.length === 0 || !isEditable || isLocked || !items) return;
@@ -491,13 +458,12 @@ export function StitchCanvas({
           ...(newProps.opacity !== undefined ? { opacity: newProps.opacity } : {}),
         };
 
-        await executeUpdateTransform({
+        const updatedColor = newProps.strokeColor || item.color;
+
+        await executeUpdateContent({
           itemId: id,
-          x: item.x,
-          y: item.y,
-          width: item.width,
-          height: item.height,
-          rotation: item.rotation,
+          color: updatedColor,
+          metadata: updatedMeta,
         });
 
         if (newProps.strokeColor) {
@@ -505,10 +471,37 @@ export function StitchCanvas({
         }
       }
     },
-    [selectedItemIds, isEditable, isLocked, items, executeUpdateTransform]
+    [selectedItemIds, isEditable, isLocked, items, executeUpdateContent]
   );
 
-  // ALIGN SELECTED ITEMS
+  // Layering
+  const handleBringToFront = useCallback(async () => {
+    if (selectedItemIds.length === 0 || !items) return;
+    const maxZ = Math.max(...items.map((i) => i.zIndex || 5), 5);
+    for (const id of selectedItemIds) {
+      await executeUpdateTransform({
+        itemId: id,
+        x: localDimensions[id]?.x || 0,
+        y: localDimensions[id]?.y || 0,
+        zIndex: maxZ + 1,
+      });
+    }
+  }, [selectedItemIds, items, localDimensions, executeUpdateTransform]);
+
+  const handleSendToBack = useCallback(async () => {
+    if (selectedItemIds.length === 0 || !items) return;
+    const minZ = Math.min(...items.map((i) => i.zIndex || 5), 5);
+    for (const id of selectedItemIds) {
+      await executeUpdateTransform({
+        itemId: id,
+        x: localDimensions[id]?.x || 0,
+        y: localDimensions[id]?.y || 0,
+        zIndex: Math.max(1, minZ - 1),
+      });
+    }
+  }, [selectedItemIds, items, localDimensions, executeUpdateTransform]);
+
+  // Align
   const handleAlignSelected = useCallback(
     async (alignment: "left" | "center" | "right" | "top" | "middle" | "bottom") => {
       if (selectedItemIds.length <= 1 || !isEditable || isLocked || !items) return;
@@ -560,7 +553,7 @@ export function StitchCanvas({
     [selectedItemIds, isEditable, isLocked, items, localDimensions, executeUpdateTransform]
   );
 
-  // WHEEL ZOOM & TRACKPAD PAN
+  // Wheel Zoom / Pan
   const handleWheel = useCallback(
     (e: React.WheelEvent) => {
       e.preventDefault();
@@ -580,36 +573,53 @@ export function StitchCanvas({
     [transform, zoomToPoint]
   );
 
-  // MOUSE DOWN HANDLER (Canvas level)
-  const handleCanvasMouseDown = useCallback(
-    (e: React.MouseEvent) => {
+  // Canvas Pointer Down
+  const handleCanvasPointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      // If clicking with middle button, or hand tool, or space held
       if (e.button === 1 || activeTool === "hand" || isSpacePressedRef.current) {
-        setIsPanning(true);
-        panStartRef.current = { x: e.clientX - transform.x, y: e.clientY - transform.y };
+        e.preventDefault();
+        setInteraction({
+          type: "panning",
+          startScreenX: e.clientX,
+          startScreenY: e.clientY,
+          startCamX: transform.x,
+          startCamY: transform.y,
+        });
         return;
       }
 
+      if (e.button !== 0) return; // Only primary button for canvas actions
       const canvasCoord = screenToCanvas(e.clientX, e.clientY);
 
-      // Drawing Tool (Pen / Pencil)
+      // Drawing Tool
       if (activeTool === "pen" || activeTool === "pencil") {
         if (!isEditable || isLocked) return;
-        setIsDrawing(true);
-        setDrawingPoints([canvasCoord]);
+        e.preventDefault();
+        setInteraction({
+          type: "drawing",
+          points: [canvasCoord],
+        });
         return;
       }
 
-      // Shape Creation Tool (Rect, Diamond, Circle, Arrow, Line)
+      // Shape Tool
       if (["rectangle", "diamond", "circle", "arrow", "line"].includes(activeTool)) {
         if (!isEditable || isLocked) return;
-        setShapeDragStart(canvasCoord);
-        setShapeDragCurrent(canvasCoord);
+        e.preventDefault();
+        setInteraction({
+          type: "drawing_shape",
+          tool: activeTool,
+          start: canvasCoord,
+          current: canvasCoord,
+        });
         return;
       }
 
-      // Sticky Note Placement
+      // Sticky Note
       if (activeTool === "sticky") {
         if (!isEditable || isLocked) return;
+        e.preventDefault();
         executeAddItem({
           projectId,
           type: "text_sticky",
@@ -628,300 +638,27 @@ export function StitchCanvas({
         return;
       }
 
-      // Selection Marquee Box (if clicking empty canvas with select tool)
+      // Selection Marquee / Deselect
       if (activeTool === "select") {
         if (!e.shiftKey) {
           setSelectedItemIds([]);
         }
-        setMarqueeSelection({
-          startX: canvasCoord.x,
-          startY: canvasCoord.y,
-          currentX: canvasCoord.x,
-          currentY: canvasCoord.y,
+        setInteraction({
+          type: "marquee",
+          start: canvasCoord,
+          current: canvasCoord,
         });
       }
     },
-    [
-      activeTool,
-      transform,
-      screenToCanvas,
-      isEditable,
-      isLocked,
-      activeStickyColor,
-      projectId,
-      executeAddItem,
-    ]
+    [activeTool, transform, screenToCanvas, isEditable, isLocked, activeStickyColor, projectId, executeAddItem]
   );
 
-  // MOUSE MOVE HANDLER
-  const handleCanvasMouseMove = useCallback(
-    (e: React.MouseEvent) => {
-      // 1. Camera Panning
-      if (isPanning) {
-        setTransform((prev) => ({
-          ...prev,
-          x: e.clientX - panStartRef.current.x,
-          y: e.clientY - panStartRef.current.y,
-        }));
-        return;
-      }
-
-      const canvasCoord = screenToCanvas(e.clientX, e.clientY);
-
-      // 2. Freehand Drawing Live Update
-      if (isDrawing) {
-        setDrawingPoints((prev) => [...prev, canvasCoord]);
-        return;
-      }
-
-      // 3. Vector Shape Drag Preview
-      if (shapeDragStart) {
-        setShapeDragCurrent(canvasCoord);
-        return;
-      }
-
-      // 4. Marquee Selection Drag
-      if (marqueeSelection) {
-        setMarqueeSelection((prev) => (prev ? { ...prev, currentX: canvasCoord.x, currentY: canvasCoord.y } : null));
-        return;
-      }
-
-      // 5. Item Resizing
-      if (resizingState) {
-        const dx = (e.clientX - resizingState.startX) / transform.scale;
-        const dy = (e.clientY - resizingState.startY) / transform.scale;
-
-        let newX = resizingState.initialX;
-        let newY = resizingState.initialY;
-        let newW = resizingState.initialWidth;
-        let newH = resizingState.initialHeight;
-
-        if (resizingState.handle.includes("e")) newW = Math.max(resizingState.initialWidth + dx, 40);
-        if (resizingState.handle.includes("s")) newH = Math.max(resizingState.initialHeight + dy, 40);
-        if (resizingState.handle.includes("w")) {
-          const w = Math.max(resizingState.initialWidth - dx, 40);
-          newX = resizingState.initialX + (resizingState.initialWidth - w);
-          newW = w;
-        }
-        if (resizingState.handle.includes("n")) {
-          const h = Math.max(resizingState.initialHeight - dy, 40);
-          newY = resizingState.initialY + (resizingState.initialHeight - h);
-          newH = h;
-        }
-
-        setLocalDimensions((prev) => ({
-          ...prev,
-          [resizingState.itemId]: { x: newX, y: newY, width: newW, height: newH },
-        }));
-        return;
-      }
-
-      // 6. Multi-Item Dragging
-      if (draggingItemIds.length > 0) {
-        const dx = (e.clientX - dragStartPos.x) / transform.scale;
-        const dy = (e.clientY - dragStartPos.y) / transform.scale;
-
-        setLocalDimensions((prev) => {
-          const next = { ...prev };
-          draggingItemIds.forEach((id) => {
-            const start = itemStartPositions[id];
-            if (start) {
-              next[id] = {
-                ...next[id],
-                x: Math.round(start.x + dx),
-                y: Math.round(start.y + dy),
-              };
-            }
-          });
-          return next;
-        });
-      }
-    },
-    [
-      isPanning,
-      isDrawing,
-      shapeDragStart,
-      marqueeSelection,
-      resizingState,
-      draggingItemIds,
-      dragStartPos,
-      itemStartPositions,
-      screenToCanvas,
-      transform.scale,
-    ]
-  );
-
-  // MOUSE UP HANDLER
-  const handleCanvasMouseUp = useCallback(async () => {
-    if (isPanning) setIsPanning(false);
-
-    // 1. Finalize Freehand Drawing
-    if (isDrawing && drawingPoints.length > 1) {
-      setIsDrawing(false);
-      let minX = Infinity,
-        minY = Infinity,
-        maxX = -Infinity,
-        maxY = -Infinity;
-      drawingPoints.forEach((p) => {
-        minX = Math.min(minX, p.x);
-        minY = Math.min(minY, p.y);
-        maxX = Math.max(maxX, p.x);
-        maxY = Math.max(maxY, p.y);
-      });
-
-      const w = Math.max(maxX - minX + 20, 40);
-      const h = Math.max(maxY - minY + 20, 40);
-      const relativePoints = drawingPoints.map((p) => ({
-        x: p.x - minX + 10,
-        y: p.y - minY + 10,
-      }));
-      const pathData = pointsToSvgPath(relativePoints);
-
-      const id = await executeAddItem({
-        projectId,
-        type: "drawing",
-        content: pathData,
-        x: Math.round(minX - 10),
-        y: Math.round(minY - 10),
-        width: Math.round(w),
-        height: Math.round(h),
-        color: activeColor,
-        zIndex: 6,
-        metadata: {
-          strokeWidth: activeTool === "pencil" ? 1.5 : 3,
-          tool: activeTool,
-          points: relativePoints,
-        },
-      });
-
-      setUndoStack((prev) => [...prev, { type: "add", itemId: id }]);
-      setDrawingPoints([]);
-      return;
-    }
-    setIsDrawing(false);
-    setDrawingPoints([]);
-
-    // 2. Finalize Shape Creation
-    if (shapeDragStart && shapeDragCurrent) {
-      const x1 = shapeDragStart.x;
-      const y1 = shapeDragStart.y;
-      const x2 = shapeDragCurrent.x;
-      const y2 = shapeDragCurrent.y;
-
-      const minX = Math.min(x1, x2);
-      const minY = Math.min(y1, y2);
-      const rawW = Math.abs(x2 - x1);
-      const rawH = Math.abs(y2 - y1);
-
-      const w = rawW < 20 ? (activeTool === "line" || activeTool === "arrow" ? 160 : 160) : rawW;
-      const h = rawH < 20 ? (activeTool === "line" || activeTool === "arrow" ? 40 : 120) : rawH;
-
-      const id = await executeAddItem({
-        projectId,
-        type: "shape",
-        content: activeTool,
-        x: Math.round(minX),
-        y: Math.round(minY),
-        width: Math.round(w),
-        height: Math.round(h),
-        color: activeColor,
-        zIndex: 6,
-        metadata: {
-          shapeType: activeTool,
-          strokeWidth: 2.5,
-          fillStyle: "solid",
-          fillColor: "transparent",
-          roughness: "clean",
-        },
-      });
-
-      setUndoStack((prev) => [...prev, { type: "add", itemId: id }]);
-      setSelectedItemIds([id]);
-      setActiveTool("select");
-      setShapeDragStart(null);
-      setShapeDragCurrent(null);
-      return;
-    }
-
-    // 3. Finalize Marquee Multi-Selection
-    if (marqueeSelection && items) {
-      const mx1 = Math.min(marqueeSelection.startX, marqueeSelection.currentX);
-      const my1 = Math.min(marqueeSelection.startY, marqueeSelection.currentY);
-      const mx2 = Math.max(marqueeSelection.startX, marqueeSelection.currentX);
-      const my2 = Math.max(marqueeSelection.startY, marqueeSelection.currentY);
-
-      if (mx2 - mx1 > 5 || my2 - my1 > 5) {
-        const hitIds = items
-          .filter((it) => {
-            const dim = localDimensions[it._id] || it;
-            const ix1 = dim.x;
-            const iy1 = dim.y;
-            const ix2 = dim.x + (dim.width || 200);
-            const iy2 = dim.y + (dim.height || 150);
-            return !(ix2 < mx1 || ix1 > mx2 || iy2 < my1 || iy1 > my2);
-          })
-          .map((it) => it._id);
-
-        setSelectedItemIds(hitIds);
-      }
-      setMarqueeSelection(null);
-    }
-
-    // 4. Finalize Resizing Persistence
-    if (resizingState) {
-      const dim = localDimensions[resizingState.itemId];
-      if (dim) {
-        await executeUpdateTransform({
-          itemId: resizingState.itemId,
-          x: dim.x,
-          y: dim.y,
-          width: dim.width,
-          height: dim.height,
-        });
-      }
-      setResizingState(null);
-    }
-
-    // 5. Finalize Multi-Item Dragging Persistence
-    if (draggingItemIds.length > 0) {
-      for (const id of draggingItemIds) {
-        const dim = localDimensions[id];
-        if (dim) {
-          await executeUpdateTransform({
-            itemId: id,
-            x: dim.x,
-            y: dim.y,
-            width: dim.width,
-            height: dim.height,
-          });
-        }
-      }
-      setDraggingItemIds([]);
-    }
-  }, [
-    isPanning,
-    isDrawing,
-    drawingPoints,
-    shapeDragStart,
-    shapeDragCurrent,
-    marqueeSelection,
-    resizingState,
-    draggingItemIds,
-    items,
-    localDimensions,
-    projectId,
-    activeColor,
-    activeTool,
-    executeAddItem,
-    executeUpdateTransform,
-  ]);
-
-  // ITEM INTERACTION HANDLERS
-  const handleItemMouseDown = useCallback(
-    (e: React.MouseEvent, item: any) => {
+  // Item Pointer Down
+  const handleItemPointerDown = useCallback(
+    (e: React.PointerEvent, item: any) => {
       e.stopPropagation();
 
-      // Eraser Tool Click
+      // Eraser tool
       if (activeTool === "eraser") {
         if (!isEditable || isLocked) return;
         setUndoStack((prev) => [
@@ -956,29 +693,36 @@ export function StitchCanvas({
       setSelectedItemIds(targetIds);
 
       if (isEditable && !isLocked) {
-        setDraggingItemIds(targetIds);
-        setDragStartPos({ x: e.clientX, y: e.clientY });
         const startPosMap: Record<string, { x: number; y: number }> = {};
         targetIds.forEach((id) => {
           const dim = localDimensions[id] || items?.find((it) => it._id === id);
           if (dim) startPosMap[id] = { x: dim.x, y: dim.y };
         });
-        setItemStartPositions(startPosMap);
+
+        setInteraction({
+          type: "dragging",
+          startScreenX: e.clientX,
+          startScreenY: e.clientY,
+          itemStartPositions: startPosMap,
+          hasMoved: false,
+        });
       }
     },
     [activeTool, selectedItemIds, isEditable, isLocked, items, localDimensions, executeDelete]
   );
 
-  const handleResizeMouseDown = useCallback(
-    (e: React.MouseEvent, item: any, handle: ResizeHandleType) => {
+  // Resize Pointer Down
+  const handleResizePointerDown = useCallback(
+    (e: React.PointerEvent, item: any, handle: ResizeHandleType) => {
       e.stopPropagation();
       if (!isEditable || isLocked) return;
       const dim = localDimensions[item._id] || item;
-      setResizingState({
+      setInteraction({
+        type: "resizing",
         itemId: item._id,
         handle,
-        startX: e.clientX,
-        startY: e.clientY,
+        startScreenX: e.clientX,
+        startScreenY: e.clientY,
         initialX: dim.x,
         initialY: dim.y,
         initialWidth: dim.width,
@@ -988,7 +732,255 @@ export function StitchCanvas({
     [isEditable, isLocked, localDimensions]
   );
 
-  // GLOBAL SHORTCUTS HANDLER
+  // Global Window Pointer Move & Pointer Up Listeners
+  useEffect(() => {
+    const handleGlobalPointerMove = (e: PointerEvent) => {
+      const state = interactionRef.current;
+      if (state.type === "idle") return;
+
+      // 1. Panning
+      if (state.type === "panning") {
+        const dx = e.clientX - state.startScreenX;
+        const dy = e.clientY - state.startScreenY;
+        setTransform({
+          x: state.startCamX + dx,
+          y: state.startCamY + dy,
+          scale: transform.scale,
+        });
+        return;
+      }
+
+      const canvasCoord = screenToCanvas(e.clientX, e.clientY);
+
+      // 2. Freehand Drawing
+      if (state.type === "drawing") {
+        setInteraction((prev) => (prev.type === "drawing" ? { ...prev, points: [...prev.points, canvasCoord] } : prev));
+        return;
+      }
+
+      // 3. Shape Creation Drag Preview
+      if (state.type === "drawing_shape") {
+        setInteraction((prev) => (prev.type === "drawing_shape" ? { ...prev, current: canvasCoord } : prev));
+        return;
+      }
+
+      // 4. Marquee Drag
+      if (state.type === "marquee") {
+        setInteraction((prev) => (prev.type === "marquee" ? { ...prev, current: canvasCoord } : prev));
+        return;
+      }
+
+      // 5. Item Resizing
+      if (state.type === "resizing") {
+        const dx = (e.clientX - state.startScreenX) / transform.scale;
+        const dy = (e.clientY - state.startScreenY) / transform.scale;
+
+        let newX = state.initialX;
+        let newY = state.initialY;
+        let newW = state.initialWidth;
+        let newH = state.initialHeight;
+
+        if (state.handle.includes("e")) newW = Math.max(state.initialWidth + dx, 30);
+        if (state.handle.includes("s")) newH = Math.max(state.initialHeight + dy, 30);
+        if (state.handle.includes("w")) {
+          const w = Math.max(state.initialWidth - dx, 30);
+          newX = state.initialX + (state.initialWidth - w);
+          newW = w;
+        }
+        if (state.handle.includes("n")) {
+          const h = Math.max(state.initialHeight - dy, 30);
+          newY = state.initialY + (state.initialHeight - h);
+          newH = h;
+        }
+
+        setLocalDimensions((prev) => ({
+          ...prev,
+          [state.itemId]: { x: Math.round(newX), y: Math.round(newY), width: Math.round(newW), height: Math.round(newH) },
+        }));
+        return;
+      }
+
+      // 6. Multi-Item Dragging
+      if (state.type === "dragging") {
+        const dx = (e.clientX - state.startScreenX) / transform.scale;
+        const dy = (e.clientY - state.startScreenY) / transform.scale;
+
+        if (!state.hasMoved && Math.hypot(dx, dy) < 3) return;
+
+        setInteraction((prev) => (prev.type === "dragging" ? { ...prev, hasMoved: true } : prev));
+
+        setLocalDimensions((prev) => {
+          const next = { ...prev };
+          Object.entries(state.itemStartPositions).forEach(([id, start]) => {
+            next[id] = {
+              ...next[id],
+              x: Math.round(start.x + dx),
+              y: Math.round(start.y + dy),
+            };
+          });
+          return next;
+        });
+      }
+    };
+
+    const handleGlobalPointerUp = async (e: PointerEvent) => {
+      const state = interactionRef.current;
+      if (state.type === "idle") return;
+
+      // Reset state first to prevent any mouse-sticking
+      setInteraction({ type: "idle" });
+
+      // 1. Finalize Freehand Drawing
+      if (state.type === "drawing" && state.points.length > 1) {
+        let minX = Infinity,
+          minY = Infinity,
+          maxX = -Infinity,
+          maxY = -Infinity;
+        state.points.forEach((p) => {
+          minX = Math.min(minX, p.x);
+          minY = Math.min(minY, p.y);
+          maxX = Math.max(maxX, p.x);
+          maxY = Math.max(maxY, p.y);
+        });
+
+        const w = Math.max(maxX - minX + 20, 30);
+        const h = Math.max(maxY - minY + 20, 30);
+        const relativePoints = state.points.map((p) => ({
+          x: p.x - minX + 10,
+          y: p.y - minY + 10,
+        }));
+        const pathData = pointsToSvgPath(relativePoints);
+
+        const id = await executeAddItem({
+          projectId,
+          type: "drawing",
+          content: pathData,
+          x: Math.round(minX - 10),
+          y: Math.round(minY - 10),
+          width: Math.round(w),
+          height: Math.round(h),
+          color: activeColor,
+          zIndex: 6,
+          metadata: {
+            strokeWidth: activeTool === "pencil" ? 1.5 : 3,
+            tool: activeTool,
+            points: relativePoints,
+          },
+        });
+
+        setUndoStack((prev) => [...prev, { type: "add", itemId: id }]);
+        return;
+      }
+
+      // 2. Finalize Shape Creation
+      if (state.type === "drawing_shape") {
+        const x1 = state.start.x;
+        const y1 = state.start.y;
+        const x2 = state.current.x;
+        const y2 = state.current.y;
+
+        const minX = Math.min(x1, x2);
+        const minY = Math.min(y1, y2);
+        const rawW = Math.abs(x2 - x1);
+        const rawH = Math.abs(y2 - y1);
+
+        const isClick = rawW < 10 && rawH < 10;
+        const w = isClick ? (state.tool === "line" || state.tool === "arrow" ? 180 : 180) : rawW;
+        const h = isClick ? (state.tool === "line" || state.tool === "arrow" ? 40 : 120) : rawH;
+
+        const id = await executeAddItem({
+          projectId,
+          type: "shape",
+          content: state.tool,
+          x: Math.round(isClick ? minX - w / 2 : minX),
+          y: Math.round(isClick ? minY - h / 2 : minY),
+          width: Math.round(w),
+          height: Math.round(h),
+          color: activeColor,
+          zIndex: 6,
+          metadata: {
+            shapeType: state.tool,
+            strokeWidth: 2.5,
+            fillStyle: "solid",
+            fillColor: "transparent",
+            roughness: "clean",
+          },
+        });
+
+        setUndoStack((prev) => [...prev, { type: "add", itemId: id }]);
+        setSelectedItemIds([id]);
+        setActiveTool("select");
+        return;
+      }
+
+      // 3. Finalize Marquee Selection
+      if (state.type === "marquee" && items) {
+        const mx1 = Math.min(state.start.x, state.current.x);
+        const my1 = Math.min(state.start.y, state.current.y);
+        const mx2 = Math.max(state.start.x, state.current.x);
+        const my2 = Math.max(state.start.y, state.current.y);
+
+        if (mx2 - mx1 > 5 || my2 - my1 > 5) {
+          const hitIds = items
+            .filter((it) => {
+              const dim = localDimensions[it._id] || it;
+              const ix1 = dim.x;
+              const iy1 = dim.y;
+              const ix2 = dim.x + (dim.width || 200);
+              const iy2 = dim.y + (dim.height || 150);
+              return !(ix2 < mx1 || ix1 > mx2 || iy2 < my1 || iy1 > my2);
+            })
+            .map((it) => it._id);
+
+          setSelectedItemIds(hitIds);
+        }
+        return;
+      }
+
+      // 4. Finalize Resizing Persistence
+      if (state.type === "resizing") {
+        const dim = localDimensions[state.itemId];
+        if (dim) {
+          await executeUpdateTransform({
+            itemId: state.itemId,
+            x: dim.x,
+            y: dim.y,
+            width: dim.width,
+            height: dim.height,
+          });
+        }
+        return;
+      }
+
+      // 5. Finalize Dragging Persistence
+      if (state.type === "dragging" && state.hasMoved) {
+        for (const id of Object.keys(state.itemStartPositions)) {
+          const dim = localDimensions[id];
+          if (dim) {
+            await executeUpdateTransform({
+              itemId: id,
+              x: dim.x,
+              y: dim.y,
+              width: dim.width,
+              height: dim.height,
+            });
+          }
+        }
+      }
+    };
+
+    window.addEventListener("pointermove", handleGlobalPointerMove);
+    window.addEventListener("pointerup", handleGlobalPointerUp);
+    window.addEventListener("pointercancel", handleGlobalPointerUp);
+
+    return () => {
+      window.removeEventListener("pointermove", handleGlobalPointerMove);
+      window.removeEventListener("pointerup", handleGlobalPointerUp);
+      window.removeEventListener("pointercancel", handleGlobalPointerUp);
+    };
+  }, [screenToCanvas, transform.scale, activeTool, activeColor, projectId, items, localDimensions, executeAddItem, executeUpdateTransform]);
+
+  // Global Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === "Space") {
@@ -1073,59 +1065,6 @@ export function StitchCanvas({
     };
   }, [handleDeleteSelected, handleDuplicateSelected, handleUndo, handleRedo, items]);
 
-  // CLIPBOARD PASTE HANDLER
-  useEffect(() => {
-    const handlePaste = async (e: ClipboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable) {
-        return;
-      }
-
-      if (!isEditable || isLocked) return;
-
-      const clipboardItems = e.clipboardData?.items;
-      if (!clipboardItems) return;
-
-      for (let i = 0; i < clipboardItems.length; i++) {
-        const item = clipboardItems[i];
-        if (item.type.indexOf("image") !== -1) {
-          e.preventDefault();
-          const file = item.getAsFile();
-          if (file) {
-            setIsUploading(true);
-            try {
-              const res = await uploadMedia(file);
-              const cw = containerRef.current?.clientWidth || 1200;
-              const ch = containerRef.current?.clientHeight || 800;
-              const spawnPos = screenToCanvas(cw / 2, ch / 2);
-
-              const id = await executeAddItem({
-                projectId,
-                type: "image",
-                content: res.url,
-                title: file.name,
-                x: Math.round(spawnPos.x - 140),
-                y: Math.round(spawnPos.y - 100),
-                width: 280,
-                height: 200,
-                zIndex: 5,
-              });
-              setSelectedItemIds([id]);
-            } catch (err) {
-              console.error("Paste image error:", err);
-            } finally {
-              setIsUploading(false);
-            }
-          }
-          return;
-        }
-      }
-    };
-
-    window.addEventListener("paste", handlePaste);
-    return () => window.removeEventListener("paste", handlePaste);
-  }, [isEditable, isLocked, screenToCanvas, executeAddItem, projectId]);
-
   // Selected items objects for Inspector
   const selectedItemsObjects = (items || []).filter((it) => selectedItemIds.includes(it._id));
 
@@ -1133,20 +1072,21 @@ export function StitchCanvas({
     <div
       ref={containerRef}
       onWheel={handleWheel}
-      onMouseDown={handleCanvasMouseDown}
-      onMouseMove={handleCanvasMouseMove}
-      onMouseUp={handleCanvasMouseUp}
+      onPointerDown={handleCanvasPointerDown}
       className={`relative w-full h-[650px] lg:h-[750px] bg-[#171512] border border-[#2E2924] rounded-3xl overflow-hidden select-none touch-none ${
         isFullscreen ? "fixed inset-0 z-50 h-screen rounded-none border-none" : ""
-      } ${activeTool === "hand" ? "cursor-grab active:cursor-grabbing" : activeTool === "eraser" ? "cursor-crosshair" : "cursor-default"}`}
+      } ${activeTool === "hand" || interaction.type === "panning" ? "cursor-grab active:cursor-grabbing" : activeTool === "eraser" ? "cursor-crosshair" : "cursor-default"}`}
       style={{
         backgroundImage: `radial-gradient(#2E2924 1px, transparent 1px)`,
         backgroundSize: `${24 * transform.scale}px ${24 * transform.scale}px`,
         backgroundPosition: `${transform.x}px ${transform.y}px`,
       }}
     >
-      {/* Top Floating Excalidraw-Style Toolbar */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1 p-1.5 bg-[#1C1A17]/95 border border-[#2E2924] rounded-2xl shadow-2xl backdrop-blur-xl pointer-events-auto">
+      {/* Top Floating Toolbar */}
+      <div
+        onPointerDown={(e) => e.stopPropagation()}
+        className="absolute top-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1 p-1.5 bg-[#1C1A17]/95 border border-[#2E2924] rounded-2xl shadow-2xl backdrop-blur-xl pointer-events-auto"
+      >
         {/* Lock Toggle */}
         <button
           onClick={() => setIsLocked(!isLocked)}
@@ -1444,10 +1384,10 @@ export function StitchCanvas({
           onUpdateProperties={handleUpdateProperties}
           onDelete={handleDeleteSelected}
           onDuplicate={handleDuplicateSelected}
-          onBringToFront={() => {}}
-          onSendToBack={() => {}}
-          onBringForward={() => {}}
-          onSendBackward={() => {}}
+          onBringToFront={handleBringToFront}
+          onSendToBack={handleSendToBack}
+          onBringForward={handleBringToFront}
+          onSendBackward={handleSendToBack}
           onAlign={handleAlignSelected}
           onClose={() => setSelectedItemIds([])}
         />
@@ -1460,7 +1400,7 @@ export function StitchCanvas({
           transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
           transformOrigin: "0 0",
         }}
-        className="absolute inset-0 w-full h-full"
+        className="absolute inset-0 w-full h-full pointer-events-none"
       >
         {/* Render Canvas Items */}
         {items?.map((item) => {
@@ -1473,52 +1413,51 @@ export function StitchCanvas({
           const isSelected = selectedItemIds.includes(item._id);
 
           return (
-            <CanvasItemRenderer
-              key={item._id}
-              item={item}
-              isSelected={isSelected}
-              isEditable={isEditable}
-              isLocked={isLocked}
-              dim={dim}
-              isResizing={resizingState?.itemId === item._id}
-              onItemMouseDown={handleItemMouseDown}
-              onItemTouchStart={() => {}}
-              onResizeMouseDown={handleResizeMouseDown}
-              onResizeTouchStart={() => {}}
-              onDelete={async (id) => {
-                setUndoStack((prev) => [...prev, { type: "delete", itemId: id, previousState: item }]);
-                await executeDelete(id);
-                setSelectedItemIds((prev) => prev.filter((i) => i !== id));
-              }}
-              onDuplicate={async (it) => {
-                const newId = await executeAddItem({
-                  projectId,
-                  type: it.type,
-                  content: it.content,
-                  title: it.title ? `${it.title} (Copy)` : undefined,
-                  x: dim.x + 30,
-                  y: dim.y + 30,
-                  width: dim.width,
-                  height: dim.height,
-                  color: it.color,
-                  rotation: it.rotation,
-                  zIndex: (it.zIndex || 5) + 1,
-                  metadata: it.metadata,
-                });
-                setSelectedItemIds([newId]);
-              }}
-              onUpdateContent={async (id, content) => {
-                await executeUpdateContent({ itemId: id, content });
-              }}
-            />
+            <div key={item._id} className="pointer-events-auto">
+              <CanvasItemRenderer
+                item={item}
+                isSelected={isSelected}
+                isEditable={isEditable}
+                isLocked={isLocked}
+                dim={dim}
+                isResizing={interaction.type === "resizing" && interaction.itemId === item._id}
+                onItemPointerDown={handleItemPointerDown}
+                onResizePointerDown={handleResizePointerDown}
+                onDelete={async (id) => {
+                  setUndoStack((prev) => [...prev, { type: "delete", itemId: id, previousState: item }]);
+                  await executeDelete(id);
+                  setSelectedItemIds((prev) => prev.filter((i) => i !== id));
+                }}
+                onDuplicate={async (it) => {
+                  const newId = await executeAddItem({
+                    projectId,
+                    type: it.type,
+                    content: it.content,
+                    title: it.title ? `${it.title} (Copy)` : undefined,
+                    x: dim.x + 25,
+                    y: dim.y + 25,
+                    width: dim.width,
+                    height: dim.height,
+                    color: it.color,
+                    rotation: it.rotation,
+                    zIndex: (it.zIndex || 5) + 1,
+                    metadata: it.metadata,
+                  });
+                  setSelectedItemIds([newId]);
+                }}
+                onUpdateContent={async (id, content) => {
+                  await executeUpdateContent({ itemId: id, content });
+                }}
+              />
+            </div>
           );
         })}
 
         {/* Real-time Freehand Drawing Live Overlay */}
-        {isDrawing && drawingPoints.length > 0 && (
+        {interaction.type === "drawing" && interaction.points.length > 0 && (
           <svg className="absolute inset-0 pointer-events-none z-50 overflow-visible">
             <path
-              d={pointsToSvgPath(drawingPoints)}
+              d={pointsToSvgPath(interaction.points)}
               fill="none"
               stroke={activeColor}
               strokeWidth={activeTool === "pencil" ? 1.5 : 3}
@@ -1529,19 +1468,19 @@ export function StitchCanvas({
         )}
 
         {/* Real-time Vector Shape Creation Drag Preview */}
-        {shapeDragStart && shapeDragCurrent && (
+        {interaction.type === "drawing_shape" && (
           <svg className="absolute inset-0 pointer-events-none z-50 overflow-visible">
             <defs>
               <marker id="preview-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
                 <polygon points="0 0, 8 3, 0 6" fill={activeColor} />
               </marker>
             </defs>
-            {activeTool === "rectangle" && (
+            {interaction.tool === "rectangle" && (
               <rect
-                x={Math.min(shapeDragStart.x, shapeDragCurrent.x)}
-                y={Math.min(shapeDragStart.y, shapeDragCurrent.y)}
-                width={Math.abs(shapeDragCurrent.x - shapeDragStart.x)}
-                height={Math.abs(shapeDragCurrent.y - shapeDragStart.y)}
+                x={Math.min(interaction.start.x, interaction.current.x)}
+                y={Math.min(interaction.start.y, interaction.current.y)}
+                width={Math.abs(interaction.current.x - interaction.start.x)}
+                height={Math.abs(interaction.current.y - interaction.start.y)}
                 rx="12"
                 fill={`${activeColor}15`}
                 stroke={activeColor}
@@ -1549,13 +1488,13 @@ export function StitchCanvas({
                 strokeDasharray="4 4"
               />
             )}
-            {activeTool === "diamond" && (
+            {interaction.tool === "diamond" && (
               <polygon
                 points={`
-                  ${(shapeDragStart.x + shapeDragCurrent.x) / 2},${Math.min(shapeDragStart.y, shapeDragCurrent.y)}
-                  ${Math.max(shapeDragStart.x, shapeDragCurrent.x)},${(shapeDragStart.y + shapeDragCurrent.y) / 2}
-                  ${(shapeDragStart.x + shapeDragCurrent.x) / 2},${Math.max(shapeDragStart.y, shapeDragCurrent.y)}
-                  ${Math.min(shapeDragStart.x, shapeDragCurrent.x)},${(shapeDragStart.y + shapeDragCurrent.y) / 2}
+                  ${(interaction.start.x + interaction.current.x) / 2},${Math.min(interaction.start.y, interaction.current.y)}
+                  ${Math.max(interaction.start.x, interaction.current.x)},${(interaction.start.y + interaction.current.y) / 2}
+                  ${(interaction.start.x + interaction.current.x) / 2},${Math.max(interaction.start.y, interaction.current.y)}
+                  ${Math.min(interaction.start.x, interaction.current.x)},${(interaction.start.y + interaction.current.y) / 2}
                 `}
                 fill={`${activeColor}15`}
                 stroke={activeColor}
@@ -1563,36 +1502,36 @@ export function StitchCanvas({
                 strokeDasharray="4 4"
               />
             )}
-            {activeTool === "circle" && (
+            {interaction.tool === "circle" && (
               <ellipse
-                cx={(shapeDragStart.x + shapeDragCurrent.x) / 2}
-                cy={(shapeDragStart.y + shapeDragCurrent.y) / 2}
-                rx={Math.abs(shapeDragCurrent.x - shapeDragStart.x) / 2}
-                ry={Math.abs(shapeDragCurrent.y - shapeDragStart.y) / 2}
+                cx={(interaction.start.x + interaction.current.x) / 2}
+                cy={(interaction.start.y + interaction.current.y) / 2}
+                rx={Math.abs(interaction.current.x - interaction.start.x) / 2}
+                ry={Math.abs(interaction.current.y - interaction.start.y) / 2}
                 fill={`${activeColor}15`}
                 stroke={activeColor}
                 strokeWidth="2"
                 strokeDasharray="4 4"
               />
             )}
-            {activeTool === "arrow" && (
+            {interaction.tool === "arrow" && (
               <line
-                x1={shapeDragStart.x}
-                y1={shapeDragStart.y}
-                x2={shapeDragCurrent.x}
-                y2={shapeDragCurrent.y}
+                x1={interaction.start.x}
+                y1={interaction.start.y}
+                x2={interaction.current.x}
+                y2={interaction.current.y}
                 stroke={activeColor}
                 strokeWidth="2.5"
                 strokeDasharray="4 4"
                 markerEnd="url(#preview-arrow)"
               />
             )}
-            {activeTool === "line" && (
+            {interaction.tool === "line" && (
               <line
-                x1={shapeDragStart.x}
-                y1={shapeDragStart.y}
-                x2={shapeDragCurrent.x}
-                y2={shapeDragCurrent.y}
+                x1={interaction.start.x}
+                y1={interaction.start.y}
+                x2={interaction.current.x}
+                y2={interaction.current.y}
                 stroke={activeColor}
                 strokeWidth="2.5"
                 strokeDasharray="4 4"
@@ -1602,13 +1541,13 @@ export function StitchCanvas({
         )}
 
         {/* Marquee Selection Box Overlay */}
-        {marqueeSelection && (
+        {interaction.type === "marquee" && (
           <div
             style={{
-              left: `${Math.min(marqueeSelection.startX, marqueeSelection.currentX)}px`,
-              top: `${Math.min(marqueeSelection.startY, marqueeSelection.currentY)}px`,
-              width: `${Math.abs(marqueeSelection.currentX - marqueeSelection.startX)}px`,
-              height: `${Math.abs(marqueeSelection.currentY - marqueeSelection.startY)}px`,
+              left: `${Math.min(interaction.start.x, interaction.current.x)}px`,
+              top: `${Math.min(interaction.start.y, interaction.current.y)}px`,
+              width: `${Math.abs(interaction.current.x - interaction.start.x)}px`,
+              height: `${Math.abs(interaction.current.y - interaction.start.y)}px`,
             }}
             className="absolute border border-[#A3E635] bg-[#A3E635]/10 rounded pointer-events-none z-50 border-dashed"
           />
@@ -1645,11 +1584,20 @@ export function StitchCanvas({
           transform={transform}
           containerWidth={containerSize.width}
           containerHeight={containerSize.height}
-          onNavigateToPoint={handleNavigateToPoint}
+          onNavigateToPoint={(cx, cy) => {
+            if (!containerRef.current) return;
+            const cw = containerRef.current.clientWidth;
+            const ch = containerRef.current.clientHeight;
+            setTransform((prev) => ({
+              ...prev,
+              x: cw / 2 - cx * prev.scale,
+              y: ch / 2 - cy * prev.scale,
+            }));
+          }}
         />
       </div>
 
-      {/* Hidden File Inputs for Media Uploads */}
+      {/* Hidden File Input for Media Uploads */}
       <input
         ref={fileInputRef}
         type="file"

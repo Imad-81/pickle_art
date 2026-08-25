@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { resolveMediaUrl } from "@/lib/media";
 import {
   Music,
@@ -10,7 +10,6 @@ import {
   Copy,
   X,
   RotateCw,
-  Edit3,
 } from "lucide-react";
 
 export type ResizeHandleType = "nw" | "ne" | "se" | "sw" | "n" | "s" | "e" | "w";
@@ -22,11 +21,8 @@ interface CanvasItemRendererProps {
   isLocked: boolean;
   dim: { x: number; y: number; width: number; height: number };
   isResizing: boolean;
-  onItemMouseDown: (e: React.MouseEvent, item: any) => void;
-  onItemTouchStart: (e: React.TouchEvent, item: any) => void;
-  onResizeMouseDown: (e: React.MouseEvent, item: any, handle: ResizeHandleType) => void;
-  onResizeTouchStart: (e: React.TouchEvent, item: any, handle: ResizeHandleType) => void;
-  onRotateMouseDown?: (e: React.MouseEvent, item: any) => void;
+  onItemPointerDown: (e: React.PointerEvent, item: any) => void;
+  onResizePointerDown: (e: React.PointerEvent, item: any, handle: ResizeHandleType) => void;
   onDelete: (itemId: string) => void;
   onDuplicate: (item: any) => void;
   onUpdateContent: (itemId: string, content: string) => void;
@@ -39,11 +35,8 @@ export function CanvasItemRenderer({
   isLocked,
   dim,
   isResizing,
-  onItemMouseDown,
-  onItemTouchStart,
-  onResizeMouseDown,
-  onResizeTouchStart,
-  onRotateMouseDown,
+  onItemPointerDown,
+  onResizePointerDown,
   onDelete,
   onDuplicate,
   onUpdateContent,
@@ -112,7 +105,7 @@ export function CanvasItemRenderer({
     return "transparent";
   };
 
-  // 8-Point Resize Handles & Rotation Handle
+  // 8-Point Resize Handles
   const renderResizeHandles = () => {
     if (!isSelected || !isEditable || isLocked) return null;
     return (
@@ -122,71 +115,63 @@ export function CanvasItemRenderer({
 
         {/* 4 Corner Handles */}
         <div
-          onMouseDown={(e) => onResizeMouseDown(e, item, "nw")}
-          onTouchStart={(e) => onResizeTouchStart(e, item, "nw")}
-          className="absolute -top-3.5 -left-3.5 w-8 h-8 flex items-center justify-center pointer-events-auto cursor-nwse-resize z-40 touch-none"
+          onPointerDown={(e) => onResizePointerDown(e, item, "nw")}
+          className="absolute -top-3.5 -left-3.5 w-7 h-7 flex items-center justify-center pointer-events-auto cursor-nwse-resize z-40 touch-none select-none"
         >
           <div className="w-3 h-3 bg-[#A3E635] border-2 border-[#171512] rounded-sm shadow-md" />
         </div>
 
         <div
-          onMouseDown={(e) => onResizeMouseDown(e, item, "ne")}
-          onTouchStart={(e) => onResizeTouchStart(e, item, "ne")}
-          className="absolute -top-3.5 -right-3.5 w-8 h-8 flex items-center justify-center pointer-events-auto cursor-nesw-resize z-40 touch-none"
+          onPointerDown={(e) => onResizePointerDown(e, item, "ne")}
+          className="absolute -top-3.5 -right-3.5 w-7 h-7 flex items-center justify-center pointer-events-auto cursor-nesw-resize z-40 touch-none select-none"
         >
           <div className="w-3 h-3 bg-[#A3E635] border-2 border-[#171512] rounded-sm shadow-md" />
         </div>
 
         <div
-          onMouseDown={(e) => onResizeMouseDown(e, item, "se")}
-          onTouchStart={(e) => onResizeTouchStart(e, item, "se")}
-          className="absolute -bottom-3.5 -right-3.5 w-8 h-8 flex items-center justify-center pointer-events-auto cursor-nwse-resize z-40 touch-none"
+          onPointerDown={(e) => onResizePointerDown(e, item, "se")}
+          className="absolute -bottom-3.5 -right-3.5 w-7 h-7 flex items-center justify-center pointer-events-auto cursor-nwse-resize z-40 touch-none select-none"
         >
           <div className="w-3 h-3 bg-[#A3E635] border-2 border-[#171512] rounded-sm shadow-md" />
         </div>
 
         <div
-          onMouseDown={(e) => onResizeMouseDown(e, item, "sw")}
-          onTouchStart={(e) => onResizeTouchStart(e, item, "sw")}
-          className="absolute -bottom-3.5 -left-3.5 w-8 h-8 flex items-center justify-center pointer-events-auto cursor-nesw-resize z-40 touch-none"
+          onPointerDown={(e) => onResizePointerDown(e, item, "sw")}
+          className="absolute -bottom-3.5 -left-3.5 w-7 h-7 flex items-center justify-center pointer-events-auto cursor-nesw-resize z-40 touch-none select-none"
         >
           <div className="w-3 h-3 bg-[#A3E635] border-2 border-[#171512] rounded-sm shadow-md" />
         </div>
 
         {/* 4 Edge Midpoint Handles */}
         <div
-          onMouseDown={(e) => onResizeMouseDown(e, item, "n")}
-          onTouchStart={(e) => onResizeTouchStart(e, item, "n")}
-          className="absolute -top-2.5 left-1/2 -translate-x-1/2 w-6 h-6 flex items-center justify-center pointer-events-auto cursor-ns-resize z-40 touch-none"
+          onPointerDown={(e) => onResizePointerDown(e, item, "n")}
+          className="absolute -top-2.5 left-1/2 -translate-x-1/2 w-6 h-5 flex items-center justify-center pointer-events-auto cursor-ns-resize z-40 touch-none select-none"
         >
           <div className="w-2.5 h-2 bg-[#A3E635] border border-[#171512] rounded-sm" />
         </div>
         <div
-          onMouseDown={(e) => onResizeMouseDown(e, item, "s")}
-          onTouchStart={(e) => onResizeTouchStart(e, item, "s")}
-          className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 w-6 h-6 flex items-center justify-center pointer-events-auto cursor-ns-resize z-40 touch-none"
+          onPointerDown={(e) => onResizePointerDown(e, item, "s")}
+          className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 w-6 h-5 flex items-center justify-center pointer-events-auto cursor-ns-resize z-40 touch-none select-none"
         >
           <div className="w-2.5 h-2 bg-[#A3E635] border border-[#171512] rounded-sm" />
         </div>
         <div
-          onMouseDown={(e) => onResizeMouseDown(e, item, "w")}
-          onTouchStart={(e) => onResizeTouchStart(e, item, "w")}
-          className="absolute top-1/2 -left-2.5 -translate-y-1/2 w-6 h-6 flex items-center justify-center pointer-events-auto cursor-ew-resize z-40 touch-none"
+          onPointerDown={(e) => onResizePointerDown(e, item, "w")}
+          className="absolute top-1/2 -left-2.5 -translate-y-1/2 w-5 h-6 flex items-center justify-center pointer-events-auto cursor-ew-resize z-40 touch-none select-none"
         >
           <div className="w-2 h-2.5 bg-[#A3E635] border border-[#171512] rounded-sm" />
         </div>
         <div
-          onMouseDown={(e) => onResizeMouseDown(e, item, "e")}
-          onTouchStart={(e) => onResizeTouchStart(e, item, "e")}
-          className="absolute top-1/2 -right-2.5 -translate-y-1/2 w-6 h-6 flex items-center justify-center pointer-events-auto cursor-ew-resize z-40 touch-none"
+          onPointerDown={(e) => onResizePointerDown(e, item, "e")}
+          className="absolute top-1/2 -right-2.5 -translate-y-1/2 w-5 h-6 flex items-center justify-center pointer-events-auto cursor-ew-resize z-40 touch-none select-none"
         >
           <div className="w-2 h-2.5 bg-[#A3E635] border border-[#171512] rounded-sm" />
         </div>
 
         {/* Live Dimension Indicator Badge */}
         {isResizing && (
-          <div className="absolute -bottom-9 left-1/2 -translate-x-1/2 px-2.5 py-0.5 bg-[#171512] text-[#A3E635] border border-[#A3E635]/50 rounded-md text-[10px] font-mono shadow-2xl whitespace-nowrap z-50">
-            {w} × {h} px
+          <div className="absolute -bottom-9 left-1/2 -translate-x-1/2 px-2.5 py-0.5 bg-[#171512] text-[#A3E635] border border-[#A3E635]/50 rounded-md text-[10px] font-mono shadow-2xl whitespace-nowrap z-50 pointer-events-none">
+            {Math.round(w)} × {Math.round(h)} px
           </div>
         )}
       </>
@@ -198,6 +183,7 @@ export function CanvasItemRenderer({
     if (!isSelected || !isEditable || isLocked) return null;
     return (
       <div
+        onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
         className="absolute -top-11 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 px-2 py-1 bg-[#1C1A17] border border-[#3E3832] rounded-xl shadow-2xl whitespace-nowrap animate-fade-in pointer-events-auto select-none"
       >
@@ -242,10 +228,9 @@ export function CanvasItemRenderer({
   if (item.type === "drawing") {
     return (
       <div
-        onMouseDown={(e) => onItemMouseDown(e, item)}
-        onTouchStart={(e) => onItemTouchStart(e, item)}
+        onPointerDown={(e) => onItemPointerDown(e, item)}
         style={wrapperStyle}
-        className={`absolute cursor-pointer group ${isSelected ? "ring-1 ring-[#A3E635]" : ""}`}
+        className={`absolute cursor-move select-none ${isSelected ? "ring-1 ring-[#A3E635]" : ""}`}
       >
         {renderFloatingActionBar()}
         <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-full overflow-visible pointer-events-none">
@@ -266,15 +251,17 @@ export function CanvasItemRenderer({
   // 2. VECTOR SHAPES (Rectangle, Diamond, Circle, Arrow, Line)
   if (item.type === "shape") {
     const shapeType = meta.shapeType || item.content || "rectangle";
-    const labelText = meta.label || "";
+    const labelText = meta.label || (item.content !== shapeType ? item.content : "");
 
     return (
       <div
-        onMouseDown={(e) => onItemMouseDown(e, item)}
-        onTouchStart={(e) => onItemTouchStart(e, item)}
-        onDoubleClick={() => setIsEditingText(true)}
+        onPointerDown={(e) => onItemPointerDown(e, item)}
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          setIsEditingText(true);
+        }}
         style={wrapperStyle}
-        className="absolute cursor-move group"
+        className="absolute cursor-move select-none"
       >
         {renderFloatingActionBar()}
         <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-full overflow-visible pointer-events-none">
@@ -347,7 +334,10 @@ export function CanvasItemRenderer({
 
         {/* Centered Inline Text Label */}
         {isEditingText ? (
-          <div className="absolute inset-2 flex items-center justify-center z-30">
+          <div
+            onPointerDown={(e) => e.stopPropagation()}
+            className="absolute inset-2 flex items-center justify-center z-30 pointer-events-auto"
+          >
             <textarea
               autoFocus
               defaultValue={labelText}
@@ -355,7 +345,13 @@ export function CanvasItemRenderer({
                 setIsEditingText(false);
                 onUpdateContent(item._id, e.target.value);
               }}
-              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  setIsEditingText(false);
+                  onUpdateContent(item._id, (e.target as HTMLTextAreaElement).value);
+                }
+              }}
               className="w-full h-full bg-transparent border-none focus:outline-none resize-none text-xs font-mono text-center text-[#EDE6DD] placeholder-[#736B62]"
               placeholder="Type label..."
             />
@@ -377,26 +373,25 @@ export function CanvasItemRenderer({
   if (item.type === "text_sticky") {
     return (
       <div
-        onMouseDown={(e) => onItemMouseDown(e, item)}
-        onTouchStart={(e) => onItemTouchStart(e, item)}
+        onPointerDown={(e) => onItemPointerDown(e, item)}
         style={{
           ...wrapperStyle,
           backgroundColor: item.color || "#FFE066",
         }}
-        className={`absolute p-3 sm:p-4 rounded-sm shadow-xl font-hand cursor-move ${
+        className={`absolute p-3 sm:p-4 rounded-sm shadow-xl font-hand cursor-move select-none ${
           isSelected ? "ring-2 ring-[#A3E635] ring-offset-2 ring-offset-black scale-[1.01]" : "hover:scale-[1.005]"
         }`}
       >
         {renderFloatingActionBar()}
         {isEditable && !isLocked ? (
           <textarea
-            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
             value={item.content}
             onChange={(e) => onUpdateContent(item._id, e.target.value)}
             className="w-full h-full bg-transparent border-none focus:outline-none resize-none text-sm font-hand text-black leading-snug cursor-text"
           />
         ) : (
-          <p className="text-sm font-hand text-black leading-snug">{item.content}</p>
+          <p className="text-sm font-hand text-black leading-snug pointer-events-none">{item.content}</p>
         )}
         {renderResizeHandles()}
       </div>
@@ -407,10 +402,9 @@ export function CanvasItemRenderer({
   if (item.type === "image") {
     return (
       <div
-        onMouseDown={(e) => onItemMouseDown(e, item)}
-        onTouchStart={(e) => onItemTouchStart(e, item)}
+        onPointerDown={(e) => onItemPointerDown(e, item)}
         style={wrapperStyle}
-        className={`absolute rounded-xl overflow-hidden bg-[#241F1B] border transition-all cursor-move shadow-xl flex flex-col ${
+        className={`absolute rounded-xl overflow-hidden bg-[#241F1B] border transition-all cursor-move shadow-xl flex flex-col select-none ${
           isSelected ? "border-[#A3E635] ring-2 ring-[#A3E635]/50 scale-[1.01]" : "border-[#342D26] hover:border-[#4E443A]"
         }`}
       >
@@ -419,9 +413,10 @@ export function CanvasItemRenderer({
           src={resolveMediaUrl(item.content)}
           alt={item.title || "Board Image"}
           className="w-full flex-1 min-h-0 object-cover pointer-events-none rounded-t-xl"
+          draggable={false}
         />
         {meta.caption && (
-          <div className="p-2 bg-[#1C1A17] text-[11px] font-mono text-[#8A837A] shrink-0 border-t border-[#2E2924] truncate">
+          <div className="p-2 bg-[#1C1A17] text-[11px] font-mono text-[#8A837A] shrink-0 border-t border-[#2E2924] truncate pointer-events-none">
             {meta.caption}
           </div>
         )}
@@ -434,21 +429,25 @@ export function CanvasItemRenderer({
   if (item.type === "audio") {
     return (
       <div
-        onMouseDown={(e) => onItemMouseDown(e, item)}
-        onTouchStart={(e) => onItemTouchStart(e, item)}
+        onPointerDown={(e) => onItemPointerDown(e, item)}
         style={wrapperStyle}
-        className={`absolute p-4 rounded-xl bg-[#241F1B] border border-[#342D26] shadow-xl flex flex-col gap-2 cursor-move ${
+        className={`absolute p-4 rounded-xl bg-[#241F1B] border border-[#342D26] shadow-xl flex flex-col gap-2 cursor-move select-none ${
           isSelected ? "border-[#A3E635] ring-2 ring-[#A3E635]/50" : ""
         }`}
       >
         {renderFloatingActionBar()}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between pointer-events-none">
           <div className="flex items-center gap-2 text-xs font-mono text-[#A3E635]">
             <Music className="w-4 h-4" />
             <span className="truncate max-w-[180px]">{item.title || "Audio Memo"}</span>
           </div>
         </div>
-        <audio src={resolveMediaUrl(item.content)} controls className="w-full h-8" />
+        <audio
+          src={resolveMediaUrl(item.content)}
+          controls
+          onPointerDown={(e) => e.stopPropagation()}
+          className="w-full h-8 pointer-events-auto"
+        />
         {renderResizeHandles()}
       </div>
     );
@@ -458,15 +457,19 @@ export function CanvasItemRenderer({
   if (item.type === "video") {
     return (
       <div
-        onMouseDown={(e) => onItemMouseDown(e, item)}
-        onTouchStart={(e) => onItemTouchStart(e, item)}
+        onPointerDown={(e) => onItemPointerDown(e, item)}
         style={wrapperStyle}
-        className={`absolute rounded-xl overflow-hidden bg-[#241F1B] border shadow-xl cursor-move flex flex-col ${
+        className={`absolute rounded-xl overflow-hidden bg-[#241F1B] border shadow-xl cursor-move flex flex-col select-none ${
           isSelected ? "border-[#A3E635]" : "border-[#342D26]"
         }`}
       >
         {renderFloatingActionBar()}
-        <video src={resolveMediaUrl(item.content)} controls className="w-full flex-1 min-h-0 object-cover" />
+        <video
+          src={resolveMediaUrl(item.content)}
+          controls
+          onPointerDown={(e) => e.stopPropagation()}
+          className="w-full flex-1 min-h-0 object-cover pointer-events-auto"
+        />
         {renderResizeHandles()}
       </div>
     );
@@ -477,15 +480,14 @@ export function CanvasItemRenderer({
     const pdfUrl = resolveMediaUrl(item.content);
     return (
       <div
-        onMouseDown={(e) => onItemMouseDown(e, item)}
-        onTouchStart={(e) => onItemTouchStart(e, item)}
+        onPointerDown={(e) => onItemPointerDown(e, item)}
         style={wrapperStyle}
-        className={`absolute rounded-xl overflow-hidden bg-[#241F1B] border shadow-xl cursor-move ${
+        className={`absolute rounded-xl overflow-hidden bg-[#241F1B] border shadow-xl cursor-move select-none ${
           isSelected ? "border-[#A3E635] ring-2 ring-[#A3E635]/50" : "border-[#3E3832] hover:border-[#4E443A]"
         }`}
       >
         {renderFloatingActionBar()}
-        <div className="flex items-center justify-between px-3 py-2 bg-[#1C1A17] border-b border-[#2E2924]">
+        <div className="flex items-center justify-between px-3 py-2 bg-[#1C1A17] border-b border-[#2E2924] pointer-events-none">
           <div className="flex items-center gap-2 truncate">
             <FileText className="w-3.5 h-3.5 text-[#A3E635] shrink-0" />
             <span className="text-[11px] font-mono font-medium text-[#EDE6DD] truncate">
@@ -503,7 +505,8 @@ export function CanvasItemRenderer({
           href={pdfUrl}
           target="_blank"
           rel="noreferrer"
-          className="absolute bottom-2 right-2 z-20 px-2 py-1 bg-[#171512]/90 border border-[#3E3832] rounded-lg text-[10px] font-mono text-[#A3E635] transition-colors"
+          onPointerDown={(e) => e.stopPropagation()}
+          className="absolute bottom-2 right-2 z-20 px-2 py-1 bg-[#171512]/90 border border-[#3E3832] rounded-lg text-[10px] font-mono text-[#A3E635] transition-colors pointer-events-auto"
         >
           Open PDF ↗
         </a>
@@ -516,17 +519,16 @@ export function CanvasItemRenderer({
   if (item.type === "frame") {
     return (
       <div
-        onMouseDown={(e) => onItemMouseDown(e, item)}
-        onTouchStart={(e) => onItemTouchStart(e, item)}
+        onPointerDown={(e) => onItemPointerDown(e, item)}
         style={wrapperStyle}
-        className={`absolute rounded-2xl border-2 border-dashed transition-shadow ${
+        className={`absolute rounded-2xl border-2 border-dashed transition-shadow select-none ${
           isSelected
             ? "border-[#A3E635] bg-[#221E1A]/60 shadow-2xl"
             : "border-[#3D3630] bg-[#1C1A17]/30 hover:border-[#524941]"
         }`}
       >
         {renderFloatingActionBar()}
-        <div className="flex items-center justify-between px-3 py-2 bg-[#221E1A] border-b border-[#2E2924] rounded-t-xl cursor-move">
+        <div className="flex items-center justify-between px-3 py-2 bg-[#221E1A] border-b border-[#2E2924] rounded-t-xl cursor-move pointer-events-none">
           <span className="text-xs font-mono font-semibold text-[#EDE6DD] truncate">
             {item.title || "Section Frame"}
           </span>

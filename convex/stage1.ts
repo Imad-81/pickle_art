@@ -87,14 +87,7 @@ export const updateItemContent = mutation({
     content: v.optional(v.string()),
     title: v.optional(v.string()),
     color: v.optional(v.string()),
-    metadata: v.optional(
-      v.object({
-        author: v.optional(v.string()),
-        caption: v.optional(v.string()),
-        fileSize: v.optional(v.number()),
-        duration: v.optional(v.number()),
-      })
-    ),
+    metadata: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
     const { itemId, ...updates } = args;
