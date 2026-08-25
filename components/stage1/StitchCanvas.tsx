@@ -16,6 +16,7 @@ import {
   ZoomIn,
   ZoomOut,
   RotateCcw,
+  RotateCw,
   Trash2,
   Plus,
   Music,
@@ -31,6 +32,11 @@ import {
   X,
   Layers,
   Palette,
+  Pen,
+  Pencil,
+  Eraser,
+  Undo2,
+  Redo2,
 } from "lucide-react";
 
 const STICKY_COLORS = [
@@ -44,6 +50,16 @@ const STICKY_COLORS = [
   { name: "Gray", bg: "#DCDDE3", text: "#2B2C33" },
 ];
 
+const PEN_COLORS = [
+  { name: "Lime", color: "#A3E635" },
+  { name: "Rose", color: "#C97B84" },
+  { name: "Moss", color: "#386641" },
+  { name: "Amber", color: "#E08B3F" },
+  { name: "Sky", color: "#60A5FA" },
+  { name: "White", color: "#F5EFEB" },
+  { name: "Charcoal", color: "#2E2924" },
+];
+
 type ResizeHandleType = "nw" | "ne" | "se" | "sw" | "n" | "s" | "e" | "w";
 
 interface ResizingState {
@@ -55,6 +71,22 @@ interface ResizingState {
   initialY: number;
   initialWidth: number;
   initialHeight: number;
+}
+
+interface HistoryAction {
+  type: "add" | "delete" | "transform";
+  itemId: string;
+  previousState?: any;
+  nextState?: any;
+}
+
+function pointsToSvgPath(points: Array<{ x: number; y: number }>) {
+  if (points.length < 2) return "";
+  let d = `M ${points[0].x} ${points[0].y}`;
+  for (let i = 1; i < points.length; i++) {
+    d += ` L ${points[i].x} ${points[i].y}`;
+  }
+  return d;
 }
 
 export function StitchCanvas({
@@ -109,13 +141,25 @@ export function StitchCanvas({
 
   // Canvas Transform state
   const [transform, setTransform] = useState({ x: 80, y: 60, scale: 0.9 });
-  const [activeTool, setActiveTool] = useState<"select" | "hand" | "sticky" | "text" | "frame">("select");
+  const [activeTool, setActiveTool] = useState<
+    "select" | "hand" | "sticky" | "text" | "frame" | "pen" | "pencil" | "eraser"
+  >("select");
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [isPanning, setIsPanning] = useState(false);
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [isUploading, setIsUploading] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Freehand Drawing State
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [currentDrawingPoints, setCurrentDrawingPoints] = useState<Array<{ x: number; y: number }>>([]);
+  const [penColor, setPenColor] = useState("#A3E635");
+  const [isPenColorPickerOpen, setPenColorPickerOpen] = useState(false);
+
+  // Undo / Redo History Stack
+  const [undoStack, setUndoStack] = useState<HistoryAction[]>([]);
+  const [redoStack, setRedoStack] = useState<HistoryAction[]>([]);
 
   // Resizing state
   const [resizingState, setResizingState] = useState<ResizingState | null>(null);
@@ -124,12 +168,13 @@ export function StitchCanvas({
   >({});
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const rootWrapperRef = useRef<HTMLDivElement>(null);
   const panStartRef = useRef({ x: 0, y: 0 });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Multi-Touch tracking ref for pinch zoom and touch pan
   const touchStateRef = useRef<{
-    mode: "none" | "pan" | "pinch" | "drag_item" | "resize_item";
+    mode: "none" | "pan" | "pinch" | "drag_item" | "resize_item" | "draw";
     initialPinchDist: number;
     initialScale: number;
     initialPinchCenter: { x: number; y: number };
@@ -145,6 +190,19 @@ export function StitchCanvas({
     panStart: { x: 0, y: 0 },
     lastTapTime: 0,
   });
+
+  // Convert Screen Coordinates to Canvas Coordinates
+  const screenToCanvas = useCallback(
+    (screenX: number, screenY: number) => {
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return { x: 200, y: 200 };
+      return {
+        x: Math.round((screenX - rect.left - transform.x) / transform.scale),
+        y: Math.round((screenY - rect.top - transform.y) / transform.scale),
+      };
+    },
+    [transform]
+  );
 
   // Smart Fit To Screen (Overview Framing)
   const fitToScreen = useCallback(() => {
@@ -196,13 +254,87 @@ export function StitchCanvas({
     setTransform({ x: newX, y: newY, scale: newScale });
   }, [items, localDimensions]);
 
-  // Handle Wheel Zoom & Trackpad Pan (Desktop)
+  // Fullscreen toggle using browser Fullscreen API
+  const toggleFullscreen = useCallback(() => {
+    if (!rootWrapperRef.current) {
+      setIsFullscreen((prev) => !prev);
+      return;
+    }
+
+    if (!document.fullscreenElement) {
+      rootWrapperRef.current
+        .requestFullscreen()
+        .then(() => setIsFullscreen(true))
+        .catch(() => setIsFullscreen(true));
+    } else {
+      document
+        .exitFullscreen()
+        .then(() => setIsFullscreen(false))
+        .catch(() => setIsFullscreen(false));
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
+
+  // UNDO & REDO Logic
+  const handleUndo = useCallback(async () => {
+    if (undoStack.length === 0) return;
+    const action = undoStack[undoStack.length - 1];
+    setUndoStack((prev) => prev.slice(0, -1));
+
+    if (action.type === "add") {
+      await deleteItemMutation({ itemId: action.itemId as any });
+      setRedoStack((prev) => [...prev, action]);
+    } else if (action.type === "delete" && action.previousState) {
+      const restoredId = await addItemMutation(action.previousState);
+      setRedoStack((prev) => [...prev, { ...action, itemId: restoredId }]);
+    } else if (action.type === "transform" && action.previousState) {
+      await updateTransformMutation({
+        itemId: action.itemId as any,
+        x: action.previousState.x,
+        y: action.previousState.y,
+        width: action.previousState.width,
+        height: action.previousState.height,
+      });
+      setRedoStack((prev) => [...prev, action]);
+    }
+  }, [undoStack, deleteItemMutation, addItemMutation, updateTransformMutation]);
+
+  const handleRedo = useCallback(async () => {
+    if (redoStack.length === 0) return;
+    const action = redoStack[redoStack.length - 1];
+    setRedoStack((prev) => prev.slice(0, -1));
+
+    if (action.type === "add" && action.nextState) {
+      const id = await addItemMutation(action.nextState);
+      setUndoStack((prev) => [...prev, { ...action, itemId: id }]);
+    } else if (action.type === "delete") {
+      await deleteItemMutation({ itemId: action.itemId as any });
+      setUndoStack((prev) => [...prev, action]);
+    } else if (action.type === "transform" && action.nextState) {
+      await updateTransformMutation({
+        itemId: action.itemId as any,
+        x: action.nextState.x,
+        y: action.nextState.y,
+        width: action.nextState.width,
+        height: action.nextState.height,
+      });
+      setUndoStack((prev) => [...prev, action]);
+    }
+  }, [redoStack, addItemMutation, deleteItemMutation, updateTransformMutation]);
+
+  // Handle Wheel Zoom & Trackpad Pan
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
     if (!containerRef.current) return;
 
     if (e.ctrlKey || e.metaKey) {
-      // Pinch Zoom
       const zoomFactor = e.deltaY < 0 ? 1.08 : 0.92;
       const rect = containerRef.current.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
@@ -215,7 +347,6 @@ export function StitchCanvas({
         return { x: newX, y: newY, scale: newScale };
       });
     } else {
-      // Two finger Pan
       setTransform((prev) => ({
         ...prev,
         x: prev.x - e.deltaX,
@@ -224,21 +355,348 @@ export function StitchCanvas({
     }
   }, []);
 
-  // Convert Screen Coordinates to Canvas Coordinates
-  const screenToCanvas = (screenX: number, screenY: number) => {
+  // Add Sticky Note
+  const handleAddSticky = useCallback(async () => {
     const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect) return { x: 200, y: 200 };
-    return {
-      x: Math.round((screenX - rect.left - transform.x) / transform.scale),
-      y: Math.round((screenY - rect.top - transform.y) / transform.scale),
+    const centerX = rect ? rect.width / 2 : window.innerWidth / 2;
+    const centerY = rect ? rect.height / 2 : window.innerHeight / 2;
+    const pos = screenToCanvas(centerX, centerY);
+    const colorObj = STICKY_COLORS[Math.floor(Math.random() * STICKY_COLORS.length)];
+    const id = await addItemMutation({
+      projectId,
+      type: "text_sticky",
+      x: pos.x - 110,
+      y: pos.y - 75,
+      width: 220,
+      height: 150,
+      rotation: Math.round((Math.random() * 4 - 2) * 10) / 10,
+      zIndex: 10,
+      color: colorObj.bg,
+      content:
+        stage === "stage2"
+          ? "Write iteration note, material test log, or dimension spec..."
+          : "Write research insight or thought here...",
+      title: stage === "stage2" ? "Dev Note" : "Process Note",
+    });
+    setUndoStack((prev) => [
+      ...prev,
+      {
+        type: "add",
+        itemId: id,
+        nextState: {
+          projectId,
+          type: "text_sticky",
+          x: pos.x - 110,
+          y: pos.y - 75,
+          width: 220,
+          height: 150,
+          color: colorObj.bg,
+          content: "Process Note",
+        },
+      },
+    ]);
+  }, [projectId, stage, addItemMutation, screenToCanvas]);
+
+  // Add Section Frame
+  const handleAddFrame = useCallback(async () => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    const centerX = rect ? rect.width / 2 : window.innerWidth / 2;
+    const centerY = rect ? rect.height / 2 : window.innerHeight / 2;
+    const pos = screenToCanvas(centerX, centerY);
+    const id = await addItemMutation({
+      projectId,
+      type: "frame",
+      x: pos.x - 190,
+      y: pos.y - 140,
+      width: 380,
+      height: 280,
+      zIndex: 1,
+      content:
+        stage === "stage2"
+          ? "Frame: Prototypes & Variant Tests"
+          : "Frame: Mood & Material Exploration",
+      title: stage === "stage2" ? "Dev Frame 01" : "Frame 01",
+    });
+    setUndoStack((prev) => [
+      ...prev,
+      {
+        type: "add",
+        itemId: id,
+        nextState: {
+          projectId,
+          type: "frame",
+          x: pos.x - 190,
+          y: pos.y - 140,
+          width: 380,
+          height: 280,
+          zIndex: 1,
+        },
+      },
+    ]);
+  }, [projectId, stage, addItemMutation, screenToCanvas]);
+
+  // Complete Drawing Stroke
+  const handleDrawingComplete = useCallback(async () => {
+    if (currentDrawingPoints.length < 2) {
+      setCurrentDrawingPoints([]);
+      return;
+    }
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
+    currentDrawingPoints.forEach((p) => {
+      minX = Math.min(minX, p.x);
+      minY = Math.min(minY, p.y);
+      maxX = Math.max(maxX, p.x);
+      maxY = Math.max(maxY, p.y);
+    });
+    const pad = 6;
+    const strokeW = activeTool === "pencil" ? 1.5 : 3.5;
+    const relPoints = currentDrawingPoints.map((p) => ({
+      x: Math.round((p.x - minX + pad) * 10) / 10,
+      y: Math.round((p.y - minY + pad) * 10) / 10,
+    }));
+    const relPath = pointsToSvgPath(relPoints);
+    const width = Math.max(Math.round(maxX - minX + pad * 2), 16);
+    const height = Math.max(Math.round(maxY - minY + pad * 2), 16);
+
+    setCurrentDrawingPoints([]);
+    const newItemId = await addItemMutation({
+      projectId,
+      type: "drawing",
+      x: Math.round(minX - pad),
+      y: Math.round(minY - pad),
+      width,
+      height,
+      content: relPath,
+      color: penColor,
+      zIndex: 8,
+      metadata: {
+        strokeWidth: strokeW,
+        tool: activeTool,
+      },
+    });
+
+    setUndoStack((prev) => [
+      ...prev,
+      {
+        type: "add",
+        itemId: newItemId,
+        nextState: {
+          projectId,
+          type: "drawing",
+          x: Math.round(minX - pad),
+          y: Math.round(minY - pad),
+          width,
+          height,
+          content: relPath,
+          color: penColor,
+          zIndex: 8,
+        },
+      },
+    ]);
+  }, [currentDrawingPoints, activeTool, penColor, projectId, addItemMutation]);
+
+  // GLOBAL CLIPBOARD PASTE LISTENER
+  useEffect(() => {
+    const handlePaste = async (e: ClipboardEvent) => {
+      if (
+        document.activeElement?.tagName === "INPUT" ||
+        document.activeElement?.tagName === "TEXTAREA"
+      ) {
+        return;
+      }
+      if (!isEditable) return;
+
+      const rect = containerRef.current?.getBoundingClientRect();
+      const centerX = rect ? rect.width / 2 : window.innerWidth / 2;
+      const centerY = rect ? rect.height / 2 : window.innerHeight / 2;
+      const centerPos = screenToCanvas(centerX, centerY);
+
+      // 1. Files in clipboard (Images)
+      const files = Array.from(e.clipboardData?.files || []);
+      if (files.length > 0) {
+        e.preventDefault();
+        setIsUploading(true);
+        try {
+          for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const res = await uploadMedia(file, { folder: `projects/${projectId}/${stage}` });
+            let itemType: any = "image";
+            if (res.type === "video") itemType = "video";
+            if (res.type === "audio") itemType = "audio";
+            if (res.type === "pdf") itemType = "pdf";
+
+            const id = await addItemMutation({
+              projectId,
+              type: itemType,
+              x: centerPos.x + i * 30,
+              y: centerPos.y + i * 30,
+              width: itemType === "audio" ? 280 : 320,
+              height: itemType === "audio" ? 120 : 240,
+              rotation: 0,
+              zIndex: 5,
+              content: res.url,
+              title: file.name,
+            });
+
+            setUndoStack((prev) => [
+              ...prev,
+              {
+                type: "add",
+                itemId: id,
+                nextState: {
+                  projectId,
+                  type: itemType,
+                  x: centerPos.x + i * 30,
+                  y: centerPos.y + i * 30,
+                  width: 320,
+                  height: 240,
+                  content: res.url,
+                  title: file.name,
+                },
+              },
+            ]);
+          }
+        } catch (err) {
+          console.error("Paste upload failed:", err);
+        } finally {
+          setIsUploading(false);
+        }
+        return;
+      }
+
+      // 2. Text / Image URL in clipboard
+      const text = e.clipboardData?.getData("text")?.trim();
+      if (text) {
+        e.preventDefault();
+        if (text.match(/^https?:\/\/.*\.(jpeg|jpg|png|webp|gif|svg)(\?.*)?$/i)) {
+          const id = await addItemMutation({
+            projectId,
+            type: "image",
+            x: centerPos.x - 150,
+            y: centerPos.y - 110,
+            width: 300,
+            height: 220,
+            zIndex: 5,
+            content: text,
+            title: "Pasted Image",
+          });
+          setUndoStack((prev) => [...prev, { type: "add", itemId: id }]);
+        } else {
+          const colorObj = STICKY_COLORS[Math.floor(Math.random() * STICKY_COLORS.length)];
+          const id = await addItemMutation({
+            projectId,
+            type: "text_sticky",
+            x: centerPos.x - 110,
+            y: centerPos.y - 75,
+            width: 220,
+            height: 150,
+            zIndex: 10,
+            color: colorObj.bg,
+            content: text,
+            title: "Pasted Note",
+          });
+          setUndoStack((prev) => [...prev, { type: "add", itemId: id }]);
+        }
+      }
     };
-  };
+
+    window.addEventListener("paste", handlePaste);
+    return () => window.removeEventListener("paste", handlePaste);
+  }, [projectId, stage, isEditable, screenToCanvas, addItemMutation]);
+
+  // KEYBOARD COMMANDS (P, F, E, V, Delete, Undo)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        document.activeElement?.tagName === "INPUT" ||
+        document.activeElement?.tagName === "TEXTAREA"
+      ) {
+        return;
+      }
+
+      // Delete selected item
+      if (e.key === "Delete" || e.key === "Backspace") {
+        if (selectedItemId && isEditable) {
+          e.preventDefault();
+          const itemToDelete = items?.find((i) => i._id === selectedItemId);
+          deleteItemMutation({ itemId: selectedItemId as any });
+          if (itemToDelete) {
+            setUndoStack((prev) => [
+              ...prev,
+              { type: "delete", itemId: selectedItemId, previousState: itemToDelete },
+            ]);
+          }
+          setSelectedItemId(null);
+        }
+        return;
+      }
+
+      // Undo / Redo
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        if (e.shiftKey) {
+          handleRedo();
+        } else {
+          handleUndo();
+        }
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "y") {
+        e.preventDefault();
+        handleRedo();
+        return;
+      }
+
+      // Tool shortcuts
+      if (e.key === "p" || e.key === "P") {
+        e.preventDefault();
+        setActiveTool((prev) => (prev === "pen" ? "pencil" : "pen"));
+      } else if (e.key === "f" || e.key === "F") {
+        e.preventDefault();
+        handleAddFrame();
+      } else if (e.key === "e" || e.key === "E") {
+        e.preventDefault();
+        setActiveTool("eraser");
+      } else if (e.key === "v" || e.key === "V" || e.key === "Escape") {
+        e.preventDefault();
+        setActiveTool("select");
+      } else if (e.key === "h" || e.key === "H") {
+        e.preventDefault();
+        setActiveTool("hand");
+      } else if (e.key === "s" || e.key === "S") {
+        e.preventDefault();
+        handleAddSticky();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    selectedItemId,
+    isEditable,
+    items,
+    deleteItemMutation,
+    handleAddFrame,
+    handleAddSticky,
+    handleUndo,
+    handleRedo,
+  ]);
 
   // Mouse Gestures (Desktop)
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button === 1 || activeTool === "hand") {
       setIsPanning(true);
       panStartRef.current = { x: e.clientX - transform.x, y: e.clientY - transform.y };
+      return;
+    }
+
+    if (activeTool === "pen" || activeTool === "pencil") {
+      setIsDrawing(true);
+      const p = screenToCanvas(e.clientX, e.clientY);
+      setCurrentDrawingPoints([p]);
       return;
     }
 
@@ -285,7 +743,14 @@ export function StitchCanvas({
       return;
     }
 
-    // Handle Active Resizing
+    // Active Drawing
+    if (isDrawing && (activeTool === "pen" || activeTool === "pencil")) {
+      const p = screenToCanvas(e.clientX, e.clientY);
+      setCurrentDrawingPoints((prev) => [...prev, p]);
+      return;
+    }
+
+    // Active Resizing
     if (resizingState && isEditable) {
       const dx = (e.clientX - resizingState.startX) / transform.scale;
       const dy = (e.clientY - resizingState.startY) / transform.scale;
@@ -295,8 +760,8 @@ export function StitchCanvas({
       let newX = resizingState.initialX;
       let newY = resizingState.initialY;
 
-      const minW = 80;
-      const minH = 50;
+      const minW = 60;
+      const minH = 40;
 
       if (resizingState.handle.includes("e")) {
         newWidth = Math.max(minW, Math.round(resizingState.initialWidth + dx));
@@ -327,7 +792,7 @@ export function StitchCanvas({
       return;
     }
 
-    // Handle Active Dragging
+    // Active Dragging
     if (draggedItemId && isEditable) {
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect) return;
@@ -361,7 +826,12 @@ export function StitchCanvas({
   const handleMouseUp = () => {
     setIsPanning(false);
 
-    // Commit final resize dimensions to Convex
+    if (isDrawing) {
+      setIsDrawing(false);
+      handleDrawingComplete();
+      return;
+    }
+
     if (resizingState) {
       const dim = localDimensions[resizingState.itemId];
       if (dim) {
@@ -379,11 +849,9 @@ export function StitchCanvas({
     setDraggedItemId(null);
   };
 
-  // --- MOBILE TOUCH EVENT ENGINE ---
-
+  // MOBILE TOUCH ENGINE
   const handleTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length === 2) {
-      // 2-Finger Pinch-to-Zoom and Pan
       const t1 = e.touches[0];
       const t2 = e.touches[1];
       const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
@@ -407,7 +875,15 @@ export function StitchCanvas({
       const t = e.touches[0];
       const now = Date.now();
 
-      // Double-Tap to Fit to Screen
+      if (activeTool === "pen" || activeTool === "pencil") {
+        setIsDrawing(true);
+        const p = screenToCanvas(t.clientX, t.clientY);
+        setCurrentDrawingPoints([p]);
+        touchStateRef.current.mode = "draw";
+        return;
+      }
+
+      // Double-Tap to Fit
       if (now - touchStateRef.current.lastTapTime < 300) {
         fitToScreen();
         touchStateRef.current.lastTapTime = 0;
@@ -415,12 +891,10 @@ export function StitchCanvas({
       }
       touchStateRef.current.lastTapTime = now;
 
-      // Tap on empty canvas deselects
       if (e.target === containerRef.current || (e.target as HTMLElement).id === "canvas-plane") {
         setSelectedItemId(null);
       }
 
-      // Single touch pan if hand mode or touching background
       touchStateRef.current.mode = "pan";
       touchStateRef.current.panStart = {
         x: t.clientX - transform.x,
@@ -431,7 +905,6 @@ export function StitchCanvas({
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (e.touches.length === 2) {
-      // Pinch to Zoom + Two Finger Pan
       const t1 = e.touches[0];
       const t2 = e.touches[1];
       const currentDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
@@ -443,7 +916,8 @@ export function StitchCanvas({
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect) return;
 
-      const { initialPinchDist, initialScale, initialPinchCenter, initialTransform } = touchStateRef.current;
+      const { initialPinchDist, initialScale, initialPinchCenter, initialTransform } =
+        touchStateRef.current;
       if (initialPinchDist > 0) {
         const scaleFactor = currentDist / initialPinchDist;
         const newScale = Math.min(Math.max(initialScale * scaleFactor, 0.25), 2.8);
@@ -454,8 +928,10 @@ export function StitchCanvas({
         const panDeltaX = currentCenter.x - initialPinchCenter.x;
         const panDeltaY = currentCenter.y - initialPinchCenter.y;
 
-        const newX = mouseX - ((mouseX - initialTransform.x) / initialTransform.scale) * newScale + panDeltaX;
-        const newY = mouseY - ((mouseY - initialTransform.y) / initialTransform.scale) * newScale + panDeltaY;
+        const newX =
+          mouseX - ((mouseX - initialTransform.x) / initialTransform.scale) * newScale + panDeltaX;
+        const newY =
+          mouseY - ((mouseY - initialTransform.y) / initialTransform.scale) * newScale + panDeltaY;
 
         setTransform({ x: newX, y: newY, scale: newScale });
       }
@@ -465,7 +941,14 @@ export function StitchCanvas({
     if (e.touches.length === 1) {
       const t = e.touches[0];
 
-      // 1. Mobile Resizing
+      // Mobile Drawing
+      if (isDrawing && (activeTool === "pen" || activeTool === "pencil")) {
+        const p = screenToCanvas(t.clientX, t.clientY);
+        setCurrentDrawingPoints((prev) => [...prev, p]);
+        return;
+      }
+
+      // Mobile Resizing
       if (resizingState && isEditable) {
         const dx = (t.clientX - resizingState.startX) / transform.scale;
         const dy = (t.clientY - resizingState.startY) / transform.scale;
@@ -475,8 +958,8 @@ export function StitchCanvas({
         let newX = resizingState.initialX;
         let newY = resizingState.initialY;
 
-        const minW = 80;
-        const minH = 50;
+        const minW = 60;
+        const minH = 40;
 
         if (resizingState.handle.includes("e")) {
           newWidth = Math.max(minW, Math.round(resizingState.initialWidth + dx));
@@ -507,7 +990,7 @@ export function StitchCanvas({
         return;
       }
 
-      // 2. Mobile Dragging Item
+      // Mobile Dragging Item
       if (draggedItemId && isEditable) {
         const rect = containerRef.current?.getBoundingClientRect();
         if (!rect) return;
@@ -538,7 +1021,7 @@ export function StitchCanvas({
         return;
       }
 
-      // 3. Mobile Panning
+      // Mobile Panning
       if (touchStateRef.current.mode === "pan" || activeTool === "hand") {
         setTransform((prev) => ({
           ...prev,
@@ -550,7 +1033,11 @@ export function StitchCanvas({
   };
 
   const handleTouchEnd = () => {
-    // Commit resize mutations if any
+    if (isDrawing) {
+      setIsDrawing(false);
+      handleDrawingComplete();
+    }
+
     if (resizingState) {
       const dim = localDimensions[resizingState.itemId];
       if (dim) {
@@ -597,53 +1084,6 @@ export function StitchCanvas({
     });
   };
 
-  // Add Sticky Note
-  const handleAddSticky = async () => {
-    const rect = containerRef.current?.getBoundingClientRect();
-    const centerX = rect ? rect.width / 2 : window.innerWidth / 2;
-    const centerY = rect ? rect.height / 2 : window.innerHeight / 2;
-    const pos = screenToCanvas(centerX, centerY);
-    const colorObj = STICKY_COLORS[Math.floor(Math.random() * STICKY_COLORS.length)];
-    await addItemMutation({
-      projectId,
-      type: "text_sticky",
-      x: pos.x - 100,
-      y: pos.y - 70,
-      width: 220,
-      height: 150,
-      rotation: Math.round((Math.random() * 4 - 2) * 10) / 10,
-      zIndex: 10,
-      color: colorObj.bg,
-      content:
-        stage === "stage2"
-          ? "Write iteration note, material test log, or CAD dimension spec..."
-          : "Write research insight or thought here...",
-      title: stage === "stage2" ? "Dev Note" : "Process Note",
-    });
-  };
-
-  // Add Section Frame
-  const handleAddFrame = async () => {
-    const rect = containerRef.current?.getBoundingClientRect();
-    const centerX = rect ? rect.width / 2 : window.innerWidth / 2;
-    const centerY = rect ? rect.height / 2 : window.innerHeight / 2;
-    const pos = screenToCanvas(centerX, centerY);
-    await addItemMutation({
-      projectId,
-      type: "frame",
-      x: pos.x - 180,
-      y: pos.y - 130,
-      width: 380,
-      height: 280,
-      zIndex: 1,
-      content:
-        stage === "stage2"
-          ? "Frame: Prototypes & Variant Tests"
-          : "Frame: Mood & Material Exploration",
-      title: stage === "stage2" ? "Dev Frame 01" : "Frame 01",
-    });
-  };
-
   // Handle Multi-File Drop onto Canvas
   const handleFileDrop = async (e: React.DragEvent) => {
     e.preventDefault();
@@ -665,7 +1105,7 @@ export function StitchCanvas({
         if (res.type === "audio") itemType = "audio";
         if (res.type === "pdf") itemType = "pdf";
 
-        await addItemMutation({
+        const id = await addItemMutation({
           projectId,
           type: itemType,
           x: dropPos.x + i * 40,
@@ -681,6 +1121,24 @@ export function StitchCanvas({
             fileSize: res.size,
           },
         });
+
+        setUndoStack((prev) => [
+          ...prev,
+          {
+            type: "add",
+            itemId: id,
+            nextState: {
+              projectId,
+              type: itemType,
+              x: dropPos.x + i * 40,
+              y: dropPos.y + i * 40,
+              width: 320,
+              height: 240,
+              content: res.url,
+              title: file.name,
+            },
+          },
+        ]);
       }
     } catch (err: any) {
       console.error(err);
@@ -690,7 +1148,6 @@ export function StitchCanvas({
     }
   };
 
-  // Handle File Upload Button (Desktop & Mobile)
   const handleFileUploadInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
@@ -711,7 +1168,7 @@ export function StitchCanvas({
         if (res.type === "audio") itemType = "audio";
         if (res.type === "pdf") itemType = "pdf";
 
-        await addItemMutation({
+        const id = await addItemMutation({
           projectId,
           type: itemType,
           x: centerPos.x + i * 30,
@@ -723,6 +1180,24 @@ export function StitchCanvas({
           content: res.url,
           title: file.name,
         });
+
+        setUndoStack((prev) => [
+          ...prev,
+          {
+            type: "add",
+            itemId: id,
+            nextState: {
+              projectId,
+              type: itemType,
+              x: centerPos.x + i * 30,
+              y: centerPos.y + i * 30,
+              width: 320,
+              height: 240,
+              content: res.url,
+              title: file.name,
+            },
+          },
+        ]);
       }
     } catch (err: any) {
       alert("Upload failed: " + err.message);
@@ -732,18 +1207,18 @@ export function StitchCanvas({
     }
   };
 
-  // Active selected item helper
   const selectedItem = items?.find((i) => i._id === selectedItemId);
 
   return (
     <div
+      ref={rootWrapperRef}
       className={`relative w-full bg-[#171512] overflow-hidden select-none transition-all ${
         isFullscreen
           ? "fixed inset-0 z-50 w-screen h-[100dvh] rounded-none border-none shadow-none flex flex-col"
-          : "h-[74vh] sm:h-[82vh] border border-[#2E2924] rounded-2xl shadow-2xl flex flex-col"
+          : "h-[74vh] sm:h-[82vh] border border-[#2E2924] rounded-3xl shadow-2xl flex flex-col"
       }`}
     >
-      {/* Hidden Mobile / Desktop File Input */}
+      {/* Hidden File Input */}
       <input
         ref={fileInputRef}
         type="file"
@@ -753,20 +1228,15 @@ export function StitchCanvas({
         className="hidden"
       />
 
-      {/* TOP BAR: Responsive info pill & quick mode switch */}
+      {/* TOP BAR: Info pill & Mode switch (Traffic dots removed) */}
       <div className="absolute top-3 left-3 right-3 sm:right-auto z-30 flex items-center justify-between sm:justify-start gap-2 pointer-events-none">
         {/* Stage Status Badge */}
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-[#1C1916]/90 backdrop-blur-md border border-[#2E2924] rounded-xl text-xs font-mono text-[#EDE6DD] shadow-lg pointer-events-auto max-w-[calc(100%-48px)] sm:max-w-none truncate">
-          <div className="flex gap-1.5 mr-0.5 shrink-0">
-            <span className="w-2 h-2 rounded-full bg-red-400" />
-            <span className="w-2 h-2 rounded-full bg-lime-400" />
-            <span className="w-2 h-2 rounded-full bg-green-400" />
-          </div>
-          <span className="font-semibold truncate">
+        <div className="flex items-center gap-2 px-3.5 py-1.5 bg-[#1C1916]/95 backdrop-blur-md border border-[#2E2924] rounded-xl text-xs font-mono text-[#EDE6DD] shadow-lg pointer-events-auto max-w-[calc(100%-48px)] sm:max-w-none truncate">
+          <span className="font-semibold truncate text-[#A3E635]">
             {stage === "stage2" ? "Stage 2" : "Stage 1"}
           </span>
           <span className="text-[#7E776F] hidden sm:inline">·</span>
-          <span className="text-[#8A837A] hidden sm:inline">
+          <span className="text-[#DDD4C8] hidden sm:inline">
             {stage === "stage2" ? "Stitch Board" : "Stitch Canvas"}
           </span>
           <span className="text-[10px] text-[#A3E635] bg-[#A3E635]/15 px-2 py-0.5 rounded-full font-mono shrink-0">
@@ -776,7 +1246,7 @@ export function StitchCanvas({
 
         {/* Mobile Fullscreen Toggle on top-right */}
         <button
-          onClick={() => setIsFullscreen((prev) => !prev)}
+          onClick={toggleFullscreen}
           title={isFullscreen ? "Exit Fullscreen" : "Fullscreen Canvas"}
           className="sm:hidden p-2 rounded-xl bg-[#1C1916]/90 backdrop-blur-md border border-[#2E2924] text-[#EDE6DD] shadow-lg pointer-events-auto active:scale-95 transition-transform"
         >
@@ -786,7 +1256,7 @@ export function StitchCanvas({
         {onSwitchToPosts && (
           <button
             onClick={onSwitchToPosts}
-            className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-[#241F1B]/90 hover:bg-[#2F2923] backdrop-blur-md border border-[#3E3832] hover:border-[#A3E635] rounded-xl text-xs font-mono text-[#EDE6DD] transition-all shadow-lg pointer-events-auto"
+            className="hidden md:flex items-center gap-1.5 px-3.5 py-1.5 bg-[#241F1B]/90 hover:bg-[#2F2923] backdrop-blur-md border border-[#3E3832] hover:border-[#A3E635] rounded-xl text-xs font-mono text-[#EDE6DD] transition-all shadow-lg pointer-events-auto"
           >
             <span>Switch to Iteration Posts 📝</span>
           </button>
@@ -795,15 +1265,15 @@ export function StitchCanvas({
 
       {/* DESKTOP FLOATING TOOL PALETTE (Top-Right, sm:flex) */}
       {isEditable && (
-        <div className="hidden sm:flex absolute top-3 right-3 z-30 items-center gap-1.5 p-1.5 bg-[#1C1916]/90 backdrop-blur-md border border-[#2E2924] rounded-2xl shadow-xl">
+        <div className="hidden sm:flex absolute top-3 right-3 z-30 items-center gap-1 p-1.5 bg-[#1C1916]/95 backdrop-blur-md border border-[#2E2924] rounded-2xl shadow-2xl">
           {/* Select Tool */}
           <button
             onClick={() => setActiveTool("select")}
-            title="Select & Move (V)"
+            title="Select & Move (V / Esc)"
             className={`p-2 rounded-xl transition-all ${
               activeTool === "select"
                 ? "bg-[#A3E635] text-[#171512] shadow-sm font-bold"
-                : "text-[#8A837A] hover:text-[#EDE6DD] hover:bg-[#2A2521]"
+                : "text-[#8A837A] hover:text-[#EDE6DD] hover:bg-[#241F1B]"
             }`}
           >
             <MousePointer className="w-4 h-4" />
@@ -816,18 +1286,97 @@ export function StitchCanvas({
             className={`p-2 rounded-xl transition-all ${
               activeTool === "hand"
                 ? "bg-[#A3E635] text-[#171512] shadow-sm font-bold"
-                : "text-[#8A837A] hover:text-[#EDE6DD] hover:bg-[#2A2521]"
+                : "text-[#8A837A] hover:text-[#EDE6DD] hover:bg-[#241F1B]"
             }`}
           >
             <Hand className="w-4 h-4" />
           </button>
 
-          <div className="w-[1px] h-5 bg-[#2E2924] mx-1" />
+          <div className="w-[1px] h-5 bg-[#2E2924] mx-0.5" />
+
+          {/* Freehand Pen Tool */}
+          <button
+            onClick={() => setActiveTool("pen")}
+            title="Pen Tool (P)"
+            className={`p-2 rounded-xl transition-all ${
+              activeTool === "pen"
+                ? "bg-[#A3E635] text-[#171512] shadow-sm font-bold"
+                : "text-[#8A837A] hover:text-[#EDE6DD] hover:bg-[#241F1B]"
+            }`}
+          >
+            <Pen className="w-4 h-4" />
+          </button>
+
+          {/* Pencil Tool */}
+          <button
+            onClick={() => setActiveTool("pencil")}
+            title="Pencil Sketch Tool"
+            className={`p-2 rounded-xl transition-all ${
+              activeTool === "pencil"
+                ? "bg-[#A3E635] text-[#171512] shadow-sm font-bold"
+                : "text-[#8A837A] hover:text-[#EDE6DD] hover:bg-[#241F1B]"
+            }`}
+          >
+            <Pencil className="w-4 h-4" />
+          </button>
+
+          {/* Eraser Tool */}
+          <button
+            onClick={() => setActiveTool("eraser")}
+            title="Eraser Tool (E)"
+            className={`p-2 rounded-xl transition-all ${
+              activeTool === "eraser"
+                ? "bg-red-500/25 text-red-400 border border-red-500/40 shadow-sm font-bold"
+                : "text-[#8A837A] hover:text-red-400 hover:bg-[#241F1B]"
+            }`}
+          >
+            <Eraser className="w-4 h-4" />
+          </button>
+
+          {/* Pen Color Selector Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setPenColorPickerOpen(!isPenColorPickerOpen)}
+              title="Stroke Color"
+              className="p-2 rounded-xl hover:bg-[#241F1B] transition-colors flex items-center gap-1"
+            >
+              <div
+                className="w-3.5 h-3.5 rounded-full border border-black/40 shadow-sm"
+                style={{ backgroundColor: penColor }}
+              />
+            </button>
+
+            {isPenColorPickerOpen && (
+              <div
+                onMouseLeave={() => setPenColorPickerOpen(false)}
+                className="absolute right-0 top-11 p-2 bg-[#1C1A17] border border-[#2E2924] rounded-xl shadow-2xl flex items-center gap-1.5 z-50 animate-fade-in"
+              >
+                {PEN_COLORS.map((col) => (
+                  <button
+                    key={col.name}
+                    onClick={() => {
+                      setPenColor(col.color);
+                      setPenColorPickerOpen(false);
+                    }}
+                    style={{ backgroundColor: col.color }}
+                    className={`w-5 h-5 rounded-full border transition-transform ${
+                      penColor === col.color
+                        ? "border-[#171512] ring-2 ring-[#A3E635] scale-110"
+                        : "border-black/50 hover:scale-105"
+                    }`}
+                    title={col.name}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="w-[1px] h-5 bg-[#2E2924] mx-0.5" />
 
           {/* Add Sticky Note */}
           <button
             onClick={handleAddSticky}
-            title="Add Sticky Note"
+            title="Add Sticky Note (S)"
             className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#241F1B] hover:bg-[#2F2923] text-xs font-sans text-[#EDE6DD] border border-[#3E3832] transition-colors"
           >
             <StickyNote className="w-3.5 h-3.5 text-[#FFE066]" />
@@ -837,7 +1386,7 @@ export function StitchCanvas({
           {/* Upload Any Media */}
           <button
             onClick={() => fileInputRef.current?.click()}
-            title="Upload Media (Images, Video, Audio, PDF)"
+            title="Upload Media / Paste with Cmd+V"
             className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#241F1B] hover:bg-[#2F2923] text-xs font-sans text-[#EDE6DD] border border-[#3E3832] transition-colors"
           >
             <Upload className="w-3.5 h-3.5 text-[#A3E635]" />
@@ -847,20 +1396,42 @@ export function StitchCanvas({
           {/* Add Section Frame */}
           <button
             onClick={handleAddFrame}
-            title="Add Section Frame Group"
+            title="Add Section Frame Group (F)"
             className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#241F1B] hover:bg-[#2F2923] text-xs font-sans text-[#EDE6DD] border border-[#3E3832] transition-colors"
           >
             <Square className="w-3.5 h-3.5 text-[#A9D8FF]" />
             <span>Frame</span>
           </button>
 
-          <div className="w-[1px] h-5 bg-[#2E2924] mx-1" />
+          <div className="w-[1px] h-5 bg-[#2E2924] mx-0.5" />
+
+          {/* Undo Button */}
+          <button
+            onClick={handleUndo}
+            disabled={undoStack.length === 0}
+            title="Undo (Cmd+Z)"
+            className="p-2 text-[#8A837A] hover:text-[#EDE6DD] hover:bg-[#241F1B] rounded-xl transition-colors disabled:opacity-30"
+          >
+            <Undo2 className="w-4 h-4" />
+          </button>
+
+          {/* Redo Button */}
+          <button
+            onClick={handleRedo}
+            disabled={redoStack.length === 0}
+            title="Redo (Cmd+Shift+Z / Cmd+Y)"
+            className="p-2 text-[#8A837A] hover:text-[#EDE6DD] hover:bg-[#241F1B] rounded-xl transition-colors disabled:opacity-30"
+          >
+            <Redo2 className="w-4 h-4" />
+          </button>
+
+          <div className="w-[1px] h-5 bg-[#2E2924] mx-0.5" />
 
           {/* Fit to Screen (Overview) */}
           <button
             onClick={fitToScreen}
             title="Fit All Items into Screen"
-            className="p-2 text-[#8A837A] hover:text-[#A3E635] hover:bg-[#2A2521] rounded-xl transition-colors"
+            className="p-2 text-[#8A837A] hover:text-[#A3E635] hover:bg-[#241F1B] rounded-xl transition-colors"
           >
             <Scan className="w-4 h-4" />
           </button>
@@ -868,7 +1439,7 @@ export function StitchCanvas({
           {/* Zoom controls */}
           <button
             onClick={() => setTransform((p) => ({ ...p, scale: Math.min(p.scale * 1.2, 2.5) }))}
-            className="p-2 text-[#8A837A] hover:text-[#EDE6DD] hover:bg-[#2A2521] rounded-xl transition-colors"
+            className="p-2 text-[#8A837A] hover:text-[#EDE6DD] hover:bg-[#241F1B] rounded-xl transition-colors"
           >
             <ZoomIn className="w-4 h-4" />
           </button>
@@ -877,23 +1448,23 @@ export function StitchCanvas({
           </span>
           <button
             onClick={() => setTransform((p) => ({ ...p, scale: Math.max(p.scale * 0.8, 0.25) }))}
-            className="p-2 text-[#8A837A] hover:text-[#EDE6DD] hover:bg-[#2A2521] rounded-xl transition-colors"
+            className="p-2 text-[#8A837A] hover:text-[#EDE6DD] hover:bg-[#241F1B] rounded-xl transition-colors"
           >
             <ZoomOut className="w-4 h-4" />
           </button>
           <button
             onClick={() => setTransform({ x: 80, y: 60, scale: 0.9 })}
-            title="Reset Canvas"
-            className="p-2 text-[#8A837A] hover:text-[#EDE6DD] hover:bg-[#2A2521] rounded-xl transition-colors"
+            title="Reset Canvas Position"
+            className="p-2 text-[#8A837A] hover:text-[#EDE6DD] hover:bg-[#241F1B] rounded-xl transition-colors"
           >
             <RotateCcw className="w-3.5 h-3.5" />
           </button>
 
           {/* Fullscreen desktop toggle */}
           <button
-            onClick={() => setIsFullscreen((p) => !p)}
+            onClick={toggleFullscreen}
             title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
-            className="p-2 text-[#8A837A] hover:text-[#A3E635] hover:bg-[#2A2521] rounded-xl transition-colors"
+            className="p-2 text-[#8A837A] hover:text-[#A3E635] hover:bg-[#241F1B] rounded-xl transition-colors"
           >
             {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>
@@ -923,7 +1494,13 @@ export function StitchCanvas({
         onDrop={handleFileDrop}
         style={{ touchAction: "none" }}
         className={`relative flex-1 w-full h-full canvas-grid touch-none overflow-hidden ${
-          activeTool === "hand" || isPanning ? "cursor-grab active:cursor-grabbing" : "cursor-default"
+          activeTool === "hand" || isPanning
+            ? "cursor-grab active:cursor-grabbing"
+            : activeTool === "pen" || activeTool === "pencil"
+            ? "cursor-crosshair"
+            : activeTool === "eraser"
+            ? "cursor-not-allowed"
+            : "cursor-default"
         }`}
       >
         <div
@@ -933,13 +1510,27 @@ export function StitchCanvas({
             transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
           }}
         >
+          {/* Active In-Progress Freehand Drawing Stroke */}
+          {currentDrawingPoints.length > 1 && (
+            <svg className="absolute inset-0 pointer-events-none overflow-visible w-full h-full z-40">
+              <path
+                d={pointsToSvgPath(currentDrawingPoints)}
+                fill="none"
+                stroke={penColor}
+                strokeWidth={activeTool === "pencil" ? 1.5 : 3.5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeOpacity={activeTool === "pencil" ? 0.75 : 1}
+              />
+            </svg>
+          )}
+
           {/* Render All Canvas Items */}
           {items &&
             items.map((item) => {
               const isSelected = selectedItemId === item._id;
               const isResizingThis = resizingState?.itemId === item._id;
 
-              // Current dimension with live local preview override
               const dim = localDimensions[item._id] || {
                 x: item.x,
                 y: item.y,
@@ -949,6 +1540,19 @@ export function StitchCanvas({
 
               const handleItemMouseDown = (e: React.MouseEvent) => {
                 if (activeTool === "hand" || e.button === 1) return;
+
+                if (activeTool === "eraser") {
+                  e.stopPropagation();
+                  deleteItemMutation({ itemId: item._id as any });
+                  setUndoStack((prev) => [
+                    ...prev,
+                    { type: "delete", itemId: item._id, previousState: item },
+                  ]);
+                  return;
+                }
+
+                if (activeTool === "pen" || activeTool === "pencil") return;
+
                 e.stopPropagation();
                 setSelectedItemId(item._id);
 
@@ -967,6 +1571,19 @@ export function StitchCanvas({
 
               const handleItemTouchStart = (e: React.TouchEvent) => {
                 if (activeTool === "hand" || e.touches.length > 1) return;
+
+                if (activeTool === "eraser") {
+                  e.stopPropagation();
+                  deleteItemMutation({ itemId: item._id as any });
+                  setUndoStack((prev) => [
+                    ...prev,
+                    { type: "delete", itemId: item._id, previousState: item },
+                  ]);
+                  return;
+                }
+
+                if (activeTool === "pen" || activeTool === "pencil") return;
+
                 e.stopPropagation();
                 setSelectedItemId(item._id);
 
@@ -989,81 +1606,38 @@ export function StitchCanvas({
                 if (!isSelected || !isEditable) return null;
                 return (
                   <>
-                    {/* Selection border ring */}
                     <div className="absolute -inset-1 border-2 border-[#A3E635] rounded-xl pointer-events-none z-30 shadow-lg" />
 
-                    {/* 4 Corner Handles with enlarged touch hit areas */}
                     <div
                       onMouseDown={(e) => handleResizeMouseDown(e, item, "nw")}
                       onTouchStart={(e) => handleResizeTouchStart(e, item, "nw")}
                       className="absolute -top-4 -left-4 w-9 h-9 flex items-center justify-center pointer-events-auto cursor-nwse-resize z-40 touch-none"
-                      title="Resize Top-Left"
                     >
-                      <div className="w-3.5 h-3.5 bg-[#A3E635] border-2 border-[#171512] rounded-sm shadow-md transition-transform hover:scale-125" />
+                      <div className="w-3.5 h-3.5 bg-[#A3E635] border-2 border-[#171512] rounded-sm shadow-md" />
                     </div>
 
                     <div
                       onMouseDown={(e) => handleResizeMouseDown(e, item, "ne")}
                       onTouchStart={(e) => handleResizeTouchStart(e, item, "ne")}
                       className="absolute -top-4 -right-4 w-9 h-9 flex items-center justify-center pointer-events-auto cursor-nesw-resize z-40 touch-none"
-                      title="Resize Top-Right"
                     >
-                      <div className="w-3.5 h-3.5 bg-[#A3E635] border-2 border-[#171512] rounded-sm shadow-md transition-transform hover:scale-125" />
+                      <div className="w-3.5 h-3.5 bg-[#A3E635] border-2 border-[#171512] rounded-sm shadow-md" />
                     </div>
 
                     <div
                       onMouseDown={(e) => handleResizeMouseDown(e, item, "se")}
                       onTouchStart={(e) => handleResizeTouchStart(e, item, "se")}
                       className="absolute -bottom-4 -right-4 w-9 h-9 flex items-center justify-center pointer-events-auto cursor-nwse-resize z-40 touch-none"
-                      title="Resize Bottom-Right"
                     >
-                      <div className="w-3.5 h-3.5 bg-[#A3E635] border-2 border-[#171512] rounded-sm shadow-md transition-transform hover:scale-125" />
+                      <div className="w-3.5 h-3.5 bg-[#A3E635] border-2 border-[#171512] rounded-sm shadow-md" />
                     </div>
 
                     <div
                       onMouseDown={(e) => handleResizeMouseDown(e, item, "sw")}
                       onTouchStart={(e) => handleResizeTouchStart(e, item, "sw")}
                       className="absolute -bottom-4 -left-4 w-9 h-9 flex items-center justify-center pointer-events-auto cursor-nesw-resize z-40 touch-none"
-                      title="Resize Bottom-Left"
                     >
-                      <div className="w-3.5 h-3.5 bg-[#A3E635] border-2 border-[#171512] rounded-sm shadow-md transition-transform hover:scale-125" />
-                    </div>
-
-                    {/* 4 Edge Handles */}
-                    <div
-                      onMouseDown={(e) => handleResizeMouseDown(e, item, "n")}
-                      onTouchStart={(e) => handleResizeTouchStart(e, item, "n")}
-                      className="absolute -top-3 left-1/2 -translate-x-1/2 w-10 h-7 flex items-center justify-center pointer-events-auto cursor-ns-resize z-40 touch-none"
-                      title="Resize Top"
-                    >
-                      <div className="w-4 h-2 bg-[#A3E635] border border-[#171512] rounded-full shadow-md transition-transform hover:scale-125" />
-                    </div>
-
-                    <div
-                      onMouseDown={(e) => handleResizeMouseDown(e, item, "s")}
-                      onTouchStart={(e) => handleResizeTouchStart(e, item, "s")}
-                      className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-10 h-7 flex items-center justify-center pointer-events-auto cursor-ns-resize z-40 touch-none"
-                      title="Resize Bottom"
-                    >
-                      <div className="w-4 h-2 bg-[#A3E635] border border-[#171512] rounded-full shadow-md transition-transform hover:scale-125" />
-                    </div>
-
-                    <div
-                      onMouseDown={(e) => handleResizeMouseDown(e, item, "w")}
-                      onTouchStart={(e) => handleResizeTouchStart(e, item, "w")}
-                      className="absolute top-1/2 -translate-y-1/2 -left-3 w-7 h-10 flex items-center justify-center pointer-events-auto cursor-ew-resize z-40 touch-none"
-                      title="Resize Left"
-                    >
-                      <div className="w-2 h-4 bg-[#A3E635] border border-[#171512] rounded-full shadow-md transition-transform hover:scale-125" />
-                    </div>
-
-                    <div
-                      onMouseDown={(e) => handleResizeMouseDown(e, item, "e")}
-                      onTouchStart={(e) => handleResizeTouchStart(e, item, "e")}
-                      className="absolute top-1/2 -translate-y-1/2 -right-3 w-7 h-10 flex items-center justify-center pointer-events-auto cursor-ew-resize z-40 touch-none"
-                      title="Resize Right"
-                    >
-                      <div className="w-2 h-4 bg-[#A3E635] border border-[#171512] rounded-full shadow-md transition-transform hover:scale-125" />
+                      <div className="w-3.5 h-3.5 bg-[#A3E635] border-2 border-[#171512] rounded-sm shadow-md" />
                     </div>
 
                     {/* Live Dimension Indicator Badge */}
@@ -1075,6 +1649,55 @@ export function StitchCanvas({
                   </>
                 );
               };
+
+              // 0. FREEHAND DRAWING NODE
+              if (item.type === "drawing") {
+                return (
+                  <div
+                    key={item._id}
+                    onMouseDown={handleItemMouseDown}
+                    onTouchStart={handleItemTouchStart}
+                    style={{
+                      left: dim.x,
+                      top: dim.y,
+                      width: dim.width,
+                      height: dim.height,
+                      zIndex: item.zIndex || 8,
+                      touchAction: "none",
+                    }}
+                    className={`absolute cursor-pointer group ${isSelected ? "ring-1 ring-[#A3E635]" : ""}`}
+                  >
+                    <svg
+                      viewBox={`0 0 ${dim.width} ${dim.height}`}
+                      className="w-full h-full overflow-visible pointer-events-none"
+                    >
+                      <path
+                        d={item.content}
+                        fill="none"
+                        stroke={item.color || "#A3E635"}
+                        strokeWidth={(item.metadata as any)?.strokeWidth || 3}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+
+                    {isSelected && isEditable && (
+                      <div className="absolute -top-3 -right-3 flex items-center gap-1 z-50 bg-[#171512] p-1 rounded-full border border-[#3E3832] shadow-md">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteItemMutation({ itemId: item._id as any });
+                          }}
+                          className="p-1 text-red-400 hover:text-red-300"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+                    {renderResizeHandles()}
+                  </div>
+                );
+              }
 
               // 1. Frame / Section Node
               if (item.type === "frame") {
@@ -1214,7 +1837,7 @@ export function StitchCanvas({
                     )}
                     <img
                       src={resolveMediaUrl(item.content)}
-                      alt={item.title || "Moodboard Image"}
+                      alt={item.title || "Board Image"}
                       className="w-full flex-1 min-h-0 object-cover pointer-events-none rounded-t-xl"
                     />
                     {item.metadata?.caption && (
@@ -1371,7 +1994,7 @@ export function StitchCanvas({
         </div>
       </div>
 
-      {/* MOBILE CONTEXTUAL ACTION BAR (When an item is selected on mobile) */}
+      {/* MOBILE CONTEXTUAL ACTION BAR */}
       {selectedItem && isEditable && (
         <div className="sm:hidden absolute bottom-20 left-4 right-4 z-40 flex items-center justify-between gap-2 p-2 bg-[#1C1916]/95 backdrop-blur-xl border border-[#3E3832] rounded-2xl shadow-2xl animate-fade-in">
           {selectedItem.type === "text_sticky" ? (
@@ -1426,11 +2049,10 @@ export function StitchCanvas({
         </div>
       )}
 
-      {/* MOBILE FLOATING BOTTOM DOCK (Thumb Ergonomics on Phones) */}
+      {/* MOBILE FLOATING BOTTOM DOCK */}
       <div className="sm:hidden absolute bottom-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 p-1.5 bg-[#1C1916]/95 backdrop-blur-xl border border-[#2E2924] rounded-2xl shadow-2xl max-w-[calc(100%-24px)] overflow-x-auto">
         {isEditable ? (
           <>
-            {/* Mode Switcher: Select vs Hand */}
             <div className="flex items-center bg-[#141210] p-0.5 rounded-xl border border-[#2E2924]">
               <button
                 onClick={() => setActiveTool("select")}
@@ -1456,9 +2078,33 @@ export function StitchCanvas({
               </button>
             </div>
 
+            {/* Quick Pen & Eraser for mobile */}
+            <button
+              onClick={() => setActiveTool("pen")}
+              className={`p-2 rounded-xl border transition-all ${
+                activeTool === "pen"
+                  ? "bg-[#A3E635] text-[#171512] border-[#A3E635]"
+                  : "bg-[#241F1B] text-[#8A837A] border-[#3E3832]"
+              }`}
+              title="Pen"
+            >
+              <Pen className="w-4 h-4" />
+            </button>
+
+            <button
+              onClick={() => setActiveTool("eraser")}
+              className={`p-2 rounded-xl border transition-all ${
+                activeTool === "eraser"
+                  ? "bg-red-500/25 text-red-400 border-red-500/40"
+                  : "bg-[#241F1B] text-[#8A837A] border-[#3E3832]"
+              }`}
+              title="Eraser"
+            >
+              <Eraser className="w-4 h-4" />
+            </button>
+
             <div className="w-[1px] h-5 bg-[#2E2924] mx-0.5" />
 
-            {/* Quick Add Sticky */}
             <button
               onClick={handleAddSticky}
               className="flex items-center gap-1 p-2 rounded-xl bg-[#241F1B] active:bg-[#2F2923] text-xs font-mono text-[#EDE6DD] border border-[#3E3832]"
@@ -1467,7 +2113,6 @@ export function StitchCanvas({
               <StickyNote className="w-4 h-4 text-[#FFE066]" />
             </button>
 
-            {/* Quick Add Media */}
             <button
               onClick={() => fileInputRef.current?.click()}
               className="flex items-center gap-1 p-2 rounded-xl bg-[#241F1B] active:bg-[#2F2923] text-xs font-mono text-[#EDE6DD] border border-[#3E3832]"
@@ -1476,7 +2121,6 @@ export function StitchCanvas({
               <Upload className="w-4 h-4 text-[#A3E635]" />
             </button>
 
-            {/* Quick Add Frame */}
             <button
               onClick={handleAddFrame}
               className="flex items-center gap-1 p-2 rounded-xl bg-[#241F1B] active:bg-[#2F2923] text-xs font-mono text-[#EDE6DD] border border-[#3E3832]"
@@ -1485,11 +2129,21 @@ export function StitchCanvas({
               <Square className="w-4 h-4 text-[#A9D8FF]" />
             </button>
 
+            {/* Undo Mobile */}
+            <button
+              onClick={handleUndo}
+              disabled={undoStack.length === 0}
+              className="p-2 rounded-xl bg-[#241F1B] text-[#8A837A] disabled:opacity-30 border border-[#3E3832]"
+              title="Undo"
+            >
+              <Undo2 className="w-4 h-4" />
+            </button>
+
             <div className="w-[1px] h-5 bg-[#2E2924] mx-0.5" />
           </>
         ) : null}
 
-        {/* Fit to Screen (Overview) */}
+        {/* Fit to Screen */}
         <button
           onClick={fitToScreen}
           className="p-2 rounded-xl bg-[#241F1B] text-[#A3E635] active:bg-[#2F2923] border border-[#3E3832]"
@@ -1518,17 +2172,23 @@ export function StitchCanvas({
       {/* DESKTOP BOTTOM STAGE BAR (sm:flex) */}
       <div className="hidden sm:flex absolute bottom-4 left-4 right-4 z-30 items-center justify-between pointer-events-none">
         <div className="px-3.5 py-1.5 bg-[#171512]/90 backdrop-blur-md border border-[#2E2924] rounded-xl text-xs font-mono text-[#8A837A] pointer-events-auto shadow-lg flex items-center gap-2">
-          <span>Pan: Space+Drag / 2 Fingers</span>
+          <span>P: Pen</span>
           <span>·</span>
-          <span>Zoom: Wheel / Pinch</span>
+          <span>F: Frame</span>
           <span>·</span>
-          <span>Double-tap: Fit all</span>
+          <span>E: Eraser</span>
+          <span>·</span>
+          <span>Cmd+V: Paste</span>
+          <span>·</span>
+          <span>Del: Delete</span>
+          <span>·</span>
+          <span>Cmd+Z: Undo</span>
         </div>
 
         {onNavigateNext ? (
           <button
             onClick={onNavigateNext}
-            className="pointer-events-auto flex items-center gap-2 px-5 py-2.5 bg-[#A3E635] hover:bg-[#65A30D] text-[#171512] font-semibold text-xs rounded-xl transition-all shadow-lg active:scale-95 ml-auto"
+            className="pointer-events-auto flex items-center gap-2 px-5 py-2.5 bg-[#A3E635] hover:bg-[#84CC16] text-[#171512] font-semibold text-xs rounded-xl transition-all shadow-lg active:scale-95 ml-auto"
           >
             <span>
               {nextLabel ||
@@ -1541,7 +2201,7 @@ export function StitchCanvas({
         ) : onNavigateToStage2 ? (
           <button
             onClick={onNavigateToStage2}
-            className="pointer-events-auto flex items-center gap-2 px-5 py-2.5 bg-[#A3E635] hover:bg-[#65A30D] text-[#171512] font-semibold text-xs rounded-xl transition-all shadow-lg active:scale-95 ml-auto"
+            className="pointer-events-auto flex items-center gap-2 px-5 py-2.5 bg-[#A3E635] hover:bg-[#84CC16] text-[#171512] font-semibold text-xs rounded-xl transition-all shadow-lg active:scale-95 ml-auto"
           >
             <span>Proceed to Stage 2: Development</span>
             <ArrowRight className="w-4 h-4" />
@@ -1549,7 +2209,7 @@ export function StitchCanvas({
         ) : onNavigateToOutput ? (
           <button
             onClick={onNavigateToOutput}
-            className="pointer-events-auto flex items-center gap-2 px-5 py-2.5 bg-[#A3E635] hover:bg-[#65A30D] text-[#171512] font-semibold text-xs rounded-xl transition-all shadow-lg active:scale-95 ml-auto"
+            className="pointer-events-auto flex items-center gap-2 px-5 py-2.5 bg-[#A3E635] hover:bg-[#84CC16] text-[#171512] font-semibold text-xs rounded-xl transition-all shadow-lg active:scale-95 ml-auto"
           >
             <span>Proceed to Output: Release</span>
             <ArrowRight className="w-4 h-4" />

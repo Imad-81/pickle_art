@@ -18,6 +18,8 @@ import {
   UserCheck,
 } from "lucide-react";
 
+import { formatDistanceToNow } from "date-fns";
+
 export function ProjectCard({ project }: { project: any }) {
   const router = useRouter();
   const { user, openAuthModal } = useAuth();
@@ -62,6 +64,11 @@ export function ProjectCard({ project }: { project: any }) {
   const s2 = project.stage2Completed;
   const s3 = project.status === "complete" || project.outputPublished;
 
+  // Format post date
+  const formattedDate = project.createdAt
+    ? formatDistanceToNow(project.createdAt, { addSuffix: true }).replace("about ", "")
+    : "recently";
+
   return (
     <Link
       href={`/project/${project._id}`}
@@ -86,6 +93,12 @@ export function ProjectCard({ project }: { project: any }) {
               WIP
             </span>
           )}
+        </div>
+
+        {/* Post Date badge (Top Right) */}
+        <div className="absolute top-3 right-3 flex items-center gap-1 px-2.5 py-1 bg-black/75 backdrop-blur-md rounded-full text-[10px] font-mono text-[#DDD4C8] border border-white/10">
+          <Clock className="w-2.5 h-2.5 text-[#A3E635]" />
+          <span>{formattedDate}</span>
         </div>
 
         {/* Stage Progress Pills (Bottom of cover image) */}
@@ -118,15 +131,15 @@ export function ProjectCard({ project }: { project: any }) {
                 e.stopPropagation();
                 router.push(`/profile/${project.creatorUsername}`);
               }}
-              className="flex items-center gap-2 group/creator hover:opacity-85 transition-opacity cursor-pointer"
+              className="flex items-center gap-2 group/creator hover:opacity-85 transition-opacity cursor-pointer min-w-0"
               title={`View @${project.creatorUsername}'s profile`}
             >
               <img
                 src={project.creatorAvatar}
                 alt={project.creatorName}
-                className="w-6 h-6 rounded-full object-cover border border-[#3E3832] group-hover/creator:border-[#A3E635] transition-colors"
+                className="w-6 h-6 rounded-full object-cover border border-[#3E3832] group-hover/creator:border-[#A3E635] transition-colors shrink-0"
               />
-              <span className="text-xs font-sans text-[#EDE6DD] font-medium truncate max-w-[130px] group-hover/creator:text-[#A3E635] group-hover/creator:underline transition-colors">
+              <span className="text-xs font-sans text-[#EDE6DD] font-medium truncate max-w-[120px] group-hover/creator:text-[#A3E635] group-hover/creator:underline transition-colors">
                 {project.creatorName}
               </span>
             </div>
@@ -135,7 +148,7 @@ export function ProjectCard({ project }: { project: any }) {
             {user && user.id !== project.creatorId && (
               <button
                 onClick={handleToggleFollow}
-                className={`p-1 px-2 rounded-full text-[10px] font-mono flex items-center gap-1 transition-all ${
+                className={`p-1 px-2 rounded-full text-[10px] font-mono flex items-center gap-1 transition-all shrink-0 ${
                   isFollowing
                     ? "bg-[#241F1B] text-[#8A837A] border border-[#3E3832]"
                     : "bg-[#A3E635]/20 text-[#A3E635] hover:bg-[#A3E635]/30 border border-[#A3E635]/40"
@@ -167,7 +180,7 @@ export function ProjectCard({ project }: { project: any }) {
 
         {/* Tags & Craft metrics */}
         <div className="pt-2 border-t border-[#2E2924] flex items-center justify-between text-[11px] font-mono text-[#7E776F]">
-          <div className="flex items-center gap-1.5 truncate max-w-[170px]">
+          <div className="flex items-center gap-1.5 truncate max-w-[160px]">
             {project.tags.slice(0, 2).map((t: string, idx: number) => (
               <span key={idx} className="text-[#8A837A]">
                 {t.startsWith("#") ? t : `#${t}`}
@@ -175,12 +188,12 @@ export function ProjectCard({ project }: { project: any }) {
             ))}
           </div>
 
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1 text-[#EDE6DD]">
+          <div className="flex items-center gap-3 shrink-0">
+            <span className="flex items-center gap-1 text-[#EDE6DD]" title={`${project.stats?.critsCount || 0} constructive critiques`}>
               <MessageSquare className="w-3 h-3 text-[#A3E635]" />
               {project.stats?.critsCount || 0}
             </span>
-            <span className="flex items-center gap-1 text-[#8A837A]">
+            <span className="flex items-center gap-1 text-[#8A837A]" title={`${project.stats?.views || 1} process views`}>
               <Eye className="w-3 h-3" />
               {project.stats?.views || 1}
             </span>

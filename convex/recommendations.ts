@@ -111,17 +111,38 @@ export const searchExplore = query({
       .collect();
 
     if (args.selectedTag) {
-      const normalizedTag = args.selectedTag.toLowerCase().replace(/^#/, "");
+      const normalizedTag = args.selectedTag.toLowerCase().replace(/^#/, "").trim();
       projects = projects.filter((p) =>
-        p.tags.some((t) => t.toLowerCase().replace(/^#/, "") === normalizedTag)
+        p.tags.some((t) => t.toLowerCase().replace(/^#/, "").trim() === normalizedTag)
       );
     }
 
     if (args.selectedChannel) {
-      const normalizedChannel = args.selectedChannel.toLowerCase();
-      projects = projects.filter(
-        (p) => p.discipline.toLowerCase() === normalizedChannel
-      );
+      const target = args.selectedChannel.toLowerCase().replace(/^#/, "").trim();
+      
+      const CHANNEL_SYNONYMS: Record<string, string[]> = {
+        packaging: ["packaging", "kraft", "unboxing", "diecut", "sustainable", "branding"],
+        illustration: ["illustration", "concept", "character", "sketch", "drawing", "linework", "concept-art"],
+        typography: ["typography", "editorial", "variable font", "type", "font", "print", "letterform"],
+        industrial: ["industrial", "furniture", "woodworking", "joinery", "physical", "ergonomic", "product design", "industrial design"],
+        motion: ["motion", "3d", "simulation", "animation", "spatial", "vfx", "procedural", "kinetic"],
+        architecture: ["architecture", "space", "spatial", "interior", "structure", "volumetric"],
+      };
+
+      const keywords = CHANNEL_SYNONYMS[target] || [target];
+
+      projects = projects.filter((p) => {
+        const disc = p.discipline.toLowerCase();
+        // 1. Direct match or substring
+        if (disc.includes(target) || target.includes(disc)) return true;
+        // 2. Synonyms match in discipline
+        if (keywords.some((k) => disc.includes(k))) return true;
+        // 3. Match in tags
+        return p.tags.some((t) => {
+          const cleanTag = t.toLowerCase().replace(/^#/, "");
+          return keywords.some((k) => cleanTag.includes(k) || k.includes(cleanTag));
+        });
+      });
     }
 
     if (args.query.trim()) {

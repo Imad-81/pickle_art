@@ -78,17 +78,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthModalOpen, setAuthModalOpen] = useState(false);
   const syncConvexUser = useMutation(api.users.syncUser);
 
-  // Initialize from localStorage or default to Aarohi Sen
+  // Initialize from localStorage
   useEffect(() => {
     const saved = localStorage.getItem("pickle_active_user");
     if (saved) {
+      if (saved === "guest") {
+        setActivePersona(null);
+        return;
+      }
       try {
         const parsed = JSON.parse(saved);
         setActivePersona(parsed);
         return;
       } catch {}
     }
-    // Default to Aarohi Sen if not logged in
+    // Default to Aarohi Sen for instant demo experience
     setActivePersona(DEMO_PERSONAS[0]);
     localStorage.setItem("pickle_active_user", JSON.stringify(DEMO_PERSONAS[0]));
   }, []);
@@ -117,7 +121,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [session, syncConvexUser]);
 
   const userEmail = activePersona?.email || "aarohi@pickle.art";
-  const convexUser = useQuery(api.users.getByEmail, { email: userEmail });
+  const convexUser = useQuery(
+    api.users.getByEmail,
+    activePersona ? { email: userEmail } : "skip"
+  );
 
   const switchPersona = (username: string) => {
     const target = DEMO_PERSONAS.find((p) => p.username === username);
@@ -139,9 +146,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await betterSignOut();
     } catch {}
-    localStorage.removeItem("pickle_active_user");
+    localStorage.setItem("pickle_active_user", "guest");
     setActivePersona(null);
-    setAuthModalOpen(true);
   };
 
   const currentUser: PickleUser | null = activePersona

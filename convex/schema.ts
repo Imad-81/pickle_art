@@ -79,6 +79,7 @@ export default defineSchema({
       v.literal("image"),
       v.literal("text_sticky"),
       v.literal("shape"),
+      v.literal("drawing"),
       v.literal("video"),
       v.literal("audio"),
       v.literal("pdf"),
@@ -95,14 +96,7 @@ export default defineSchema({
     content: v.string(), // text content or URL
     title: v.optional(v.string()),
     frameId: v.optional(v.string()), // parent frame ID if grouped
-    metadata: v.optional(
-      v.object({
-        author: v.optional(v.string()),
-        caption: v.optional(v.string()),
-        fileSize: v.optional(v.number()),
-        duration: v.optional(v.number()),
-      })
-    ),
+    metadata: v.optional(v.any()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -115,6 +109,7 @@ export default defineSchema({
       v.literal("image"),
       v.literal("text_sticky"),
       v.literal("shape"),
+      v.literal("drawing"),
       v.literal("video"),
       v.literal("audio"),
       v.literal("pdf"),
@@ -131,14 +126,7 @@ export default defineSchema({
     content: v.string(), // text content or URL
     title: v.optional(v.string()),
     frameId: v.optional(v.string()), // parent frame ID if grouped
-    metadata: v.optional(
-      v.object({
-        author: v.optional(v.string()),
-        caption: v.optional(v.string()),
-        fileSize: v.optional(v.number()),
-        duration: v.optional(v.number()),
-      })
-    ),
+    metadata: v.optional(v.any()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })

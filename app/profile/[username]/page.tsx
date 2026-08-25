@@ -54,6 +54,10 @@ export default function ProfilePage() {
         }
       : "skip"
   );
+  const followCounts = useQuery(
+    api.follows.getFollowCounts,
+    profileUser ? { userId: profileUser._id } : "skip"
+  );
   const toggleFollowMutation = useMutation(api.follows.toggleFollow);
 
   if (!profileUser) {
@@ -84,7 +88,7 @@ export default function ProfilePage() {
   });
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-8 animate-fade-in">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-8 animate-fade-in pb-36">
       {/* Top Profile Header */}
       <div className="p-6 sm:p-8 bg-[#1C1A17] border border-[#2E2924] rounded-3xl shadow-2xl space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
@@ -95,16 +99,28 @@ export default function ProfilePage() {
               alt={profileUser.name}
               className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-4 border-[#A3E635] shadow-xl"
             />
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#EDE6DD]">
                 {profileUser.name}
               </h1>
               <div className="text-xs font-mono text-[#8A837A]">
                 @{profileUser.username}
               </div>
-              <div className="flex items-center gap-1.5 pt-1">
+
+              {/* Connections / Followers & Points Row */}
+              <div className="flex flex-wrap items-center gap-2 pt-1 text-xs font-mono">
                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono bg-[#A3E635]/20 text-[#A3E635] border border-[#A3E635]/40 font-semibold">
                   {profileUser.growthPoints || 50} craft pts
+                </span>
+                <span className="text-[#3A342D]">•</span>
+                <span className="text-[#EDE6DD] font-semibold">
+                  {followCounts?.followersCount ?? 0}{" "}
+                  <span className="text-[#8A837A] font-normal">followers</span>
+                </span>
+                <span className="text-[#3A342D]">•</span>
+                <span className="text-[#EDE6DD] font-semibold">
+                  {followCounts?.followingCount ?? 0}{" "}
+                  <span className="text-[#8A837A] font-normal">following</span>
                 </span>
               </div>
             </div>

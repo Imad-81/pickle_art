@@ -85,9 +85,9 @@ function MessagesHubContent() {
   const currentChannel = channels?.find((c) => c.slug === activeChannelSlug);
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-6 space-y-4 sm:space-y-6 pb-24 sm:pb-8 animate-fade-in">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-6 space-y-4 sm:space-y-6 pb-36 sm:pb-12 animate-fade-in">
       {/* Top Hub Header & Switcher */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 p-3.5 sm:p-5 bg-[#1C1A17] border border-[#2E2924] rounded-2xl shadow-xl">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 p-3.5 sm:p-5 bg-[#1C1A17] border border-[#2E2924] rounded-3xl shadow-xl">
         <div>
           <h1 className="text-lg sm:text-xl font-serif font-bold text-[#EDE6DD]">
             Studio Messages & Notes

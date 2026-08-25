@@ -6,7 +6,7 @@ import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { resolveMediaUrl } from "@/lib/media";
-import { X, ChevronLeft, ChevronRight, Volume2, VolumeX, Sparkles, Send, Clock, ArrowUpRight } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Volume2, VolumeX, Sparkles, Send, Clock, ArrowUpRight, Play, Pause } from "lucide-react";
 
 interface HighlightItem {
   _id: string;
@@ -58,6 +58,60 @@ export function HighlightModal({
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const DURATION_MS = 5000; // 5 seconds per story
 
+  const handleNext = () => {
+    if (!currentGroup) return;
+    if (itemIndex < currentGroup.items.length - 1) {
+      setItemIndex(itemIndex + 1);
+    } else if (groupIndex < groups.length - 1) {
+      setGroupIndex(groupIndex + 1);
+      setItemIndex(0);
+    } else {
+      onClose();
+    }
+  };
+
+  const handlePrev = () => {
+    if (itemIndex > 0) {
+      setItemIndex(itemIndex - 1);
+    } else if (groupIndex > 0) {
+      setGroupIndex(groupIndex - 1);
+      setItemIndex(groups[groupIndex - 1].items.length - 1);
+    }
+  };
+
+  // Keyboard navigation & controls
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if typing in reply input
+      if (
+        document.activeElement?.tagName === "INPUT" ||
+        document.activeElement?.tagName === "TEXTAREA"
+      ) {
+        return;
+      }
+
+      if (e.key === " " || e.code === "Space") {
+        e.preventDefault();
+        setIsPaused((prev) => !prev);
+      } else if (e.key === "ArrowRight" || e.key === "n" || e.key === "N" || e.key === "l") {
+        e.preventDefault();
+        handleNext();
+      } else if (e.key === "ArrowLeft" || e.key === "p" || e.key === "P" || e.key === "h") {
+        e.preventDefault();
+        handlePrev();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+      } else if (e.key === "m" || e.key === "M") {
+        e.preventDefault();
+        setIsMuted((prev) => !prev);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [groupIndex, itemIndex, groups, onClose]);
+
   // Mark viewed when item changes
   useEffect(() => {
     if (currentItem && user) {
@@ -90,27 +144,6 @@ export function HighlightModal({
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [groupIndex, itemIndex, isPaused, currentItem]);
-
-  const handleNext = () => {
-    if (!currentGroup) return;
-    if (itemIndex < currentGroup.items.length - 1) {
-      setItemIndex(itemIndex + 1);
-    } else if (groupIndex < groups.length - 1) {
-      setGroupIndex(groupIndex + 1);
-      setItemIndex(0);
-    } else {
-      onClose();
-    }
-  };
-
-  const handlePrev = () => {
-    if (itemIndex > 0) {
-      setItemIndex(itemIndex - 1);
-    } else if (groupIndex > 0) {
-      setGroupIndex(groupIndex - 1);
-      setItemIndex(groups[groupIndex - 1].items.length - 1);
-    }
-  };
 
   const handleSendReply = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -152,20 +185,20 @@ export function HighlightModal({
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-xl animate-fade-in select-none">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-2xl animate-fade-in select-none">
       {/* Background close overlay */}
       <div className="absolute inset-0" onClick={onClose} />
 
       {/* Main Story Container */}
       <div
-        className="relative z-10 w-full max-w-sm sm:max-w-md h-[88vh] max-h-[780px] bg-[#171512] rounded-2xl overflow-hidden border border-[#2E2924] shadow-2xl flex flex-col justify-between"
+        className="relative z-10 w-full max-w-sm sm:max-w-md h-[88vh] max-h-[780px] bg-[#171512] rounded-3xl overflow-hidden border border-[#3A342D] shadow-2xl flex flex-col justify-between"
         onMouseDown={() => setIsPaused(true)}
         onMouseUp={() => setIsPaused(false)}
         onTouchStart={() => setIsPaused(true)}
         onTouchEnd={() => setIsPaused(false)}
       >
         {/* Top Header & Segmented Progress Bars */}
-        <div className="absolute top-0 left-0 right-0 z-20 p-4 bg-gradient-to-b from-black/80 via-black/40 to-transparent">
+        <div className="absolute top-0 left-0 right-0 z-20 p-4 bg-gradient-to-b from-black/85 via-black/45 to-transparent">
           {/* Segmented Progress Bars */}
           <div className="flex gap-1.5 mb-3">
             {currentGroup.items.map((it, idx) => {
@@ -209,13 +242,26 @@ export function HighlightModal({
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
+              {/* Play / Pause Toggle Button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsPaused(!isPaused);
+                }}
+                className="p-1.5 rounded-full bg-black/50 text-white/80 hover:text-white hover:bg-black/70 transition-colors"
+                title={isPaused ? "Play (Space)" : "Pause (Space)"}
+              >
+                {isPaused ? <Play className="w-4 h-4 text-[#A3E635]" /> : <Pause className="w-4 h-4" />}
+              </button>
+
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setIsMuted(!isMuted);
                 }}
-                className="p-1.5 rounded-full bg-black/40 text-white/80 hover:text-white"
+                className="p-1.5 rounded-full bg-black/50 text-white/80 hover:text-white hover:bg-black/70 transition-colors"
+                title="Mute/Unmute (M)"
               >
                 {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
               </button>
@@ -224,7 +270,8 @@ export function HighlightModal({
                   e.stopPropagation();
                   onClose();
                 }}
-                className="p-1.5 rounded-full bg-black/40 text-white/80 hover:text-white"
+                className="p-1.5 rounded-full bg-black/50 text-white/80 hover:text-white hover:bg-black/70 transition-colors"
+                title="Close (Esc)"
               >
                 <X className="w-4 h-4" />
               </button>

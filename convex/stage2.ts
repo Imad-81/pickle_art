@@ -198,6 +198,7 @@ export const addCanvasItem = mutation({
       v.literal("image"),
       v.literal("text_sticky"),
       v.literal("shape"),
+      v.literal("drawing"),
       v.literal("video"),
       v.literal("audio"),
       v.literal("pdf"),
@@ -214,14 +215,7 @@ export const addCanvasItem = mutation({
     content: v.string(),
     title: v.optional(v.string()),
     frameId: v.optional(v.string()),
-    metadata: v.optional(
-      v.object({
-        author: v.optional(v.string()),
-        caption: v.optional(v.string()),
-        fileSize: v.optional(v.number()),
-        duration: v.optional(v.number()),
-      })
-    ),
+    metadata: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
